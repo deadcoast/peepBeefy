@@ -27,17 +27,39 @@ import typer
 from rich import box
 from rich.align import Align
 from rich.console import Console
+from rich.live import Live
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
+from rich.theme import Theme
 from rich.traceback import install as rich_traceback_install
-from rich.live import Live
 
 # --- Rich / Typer setup -------------------------------------------------------
 
 rich_traceback_install(show_locals=False, suppress=[typer, psutil])
-console = Console(highlight=False)
+
+PEEP_THEME = Theme({
+    "peep.accent": "cyan",
+    "peep.brand": "bold cyan",
+    "peep.error": "bold red",
+    "peep.success": "green",
+    "peep.muted": "dim",
+    "peep.heading": "bold",
+    "peep.metric.hot": "bold red",
+    "peep.metric.warn": "yellow",
+    "peep.metric.ok": "green",
+    "peep.diff.added": "green",
+    "peep.diff.removed": "red",
+    "peep.tag": "cyan",
+    "peep.service": "magenta",
+    "peep.kind.windows": "dim",
+    "peep.kind.service": "magenta",
+    "peep.kind.app": "cyan",
+})
+
+console = Console(highlight=False, theme=PEEP_THEME)
 app = typer.Typer(
     add_completion=False,
     help="peepBeefy — find and display heavy running processes (gamer-friendly).",
@@ -264,11 +286,11 @@ def color_metric(value: float, thresholds: Tuple[float, float], fmt: str = "{:.1
     """
     warn, hot = thresholds
     if value >= hot:
-        style = "bold red"
+        style = "peep.metric.hot"
     elif value >= warn:
-        style = "yellow"
+        style = "peep.metric.warn"
     else:
-        style = "green"
+        style = "peep.metric.ok"
     return Text(fmt.format(value), style=style)
 
 
@@ -276,11 +298,11 @@ def color_bytes(value_bytes: float, thresholds_mb_s: Tuple[float, float]) -> Tex
     mb_s = value_bytes / (1024 ** 2)
     warn, hot = thresholds_mb_s
     if mb_s >= hot:
-        style = "bold red"
+        style = "peep.metric.hot"
     elif mb_s >= warn:
-        style = "yellow"
+        style = "peep.metric.warn"
     else:
-        style = "green"
+        style = "peep.metric.ok"
     return Text(rate_to_human(value_bytes), style=style)
 
 
@@ -289,6 +311,23 @@ def safe_str(x: Any) -> str:
         return str(x)
     except Exception:
         return ""
+
+
+def _error(msg: str) -> None:
+    console.print(Panel(Text(msg, style="peep.error"), border_style="red", box=box.ROUNDED))
+
+
+def _success(msg: str) -> None:
+    console.print(Panel(Text(msg, style="peep.success"), border_style="green", box=box.ROUNDED))
+
+
+def _sampled(
+    seconds: float = 1.0,
+    include_windows: bool = False,
+    include_services: bool = True,
+) -> List[ProcRow]:
+    with console.status("[peep.accent]Sampling processes\u2026[/peep.accent]", spinner="dots"):
+        return collect_samples(seconds=seconds, include_windows=include_windows, include_services=include_services)
 
 
 def match_tags(name: str, exe: str, cmdline: str) -> List[str]:
@@ -500,7 +539,7 @@ def tag_badge(tags: List[str]) -> Text:
     parts: List[Text] = []
     for t in tags[:3]:
         icon, _desc = TAG_DEFS.get(t, ("", t))
-        parts.append(Text(f"{icon}{t}", style="cyan"))
+        parts.append(Text(f"{icon}{t}", style="peep.tag"))
     out = Text(" ")
     for i, part in enumerate(parts):
         if i:
@@ -521,17 +560,17 @@ def service_badge(services: List[ServiceInfo]) -> Text:
     if len(services) > 2:
         names.append(f"+{len(services) - 2}")
     txt = ", ".join(names)
-    return Text(txt, style="magenta")
+    return Text(txt, style="peep.service")
 
 
 def kind_badge(kind: str) -> Text:
     if kind == "Windows":
-        return Text("Windows", style="dim")
+        return Text("Windows", style="peep.kind.windows")
     if kind == "Service":
-        return Text("Service", style="magenta")
+        return Text("Service", style="peep.kind.service")
     if kind == "App":
-        return Text("App", style="cyan")
-    return Text(kind, style="yellow")
+        return Text("App", style="peep.kind.app")
+    return Text(kind, style="peep.metric.warn")
 
 
 def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
@@ -555,19 +594,19 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
     table.add_column("Path", justify="left")
 
     for r in rows[:limit]:
-        beef_style = "green"
+        beef_style = "peep.metric.ok"
         if r.beef_score >= 60:
-            beef_style = "bold red"
+            beef_style = "peep.metric.hot"
         elif r.beef_score >= 25:
-            beef_style = "yellow"
+            beef_style = "peep.metric.warn"
 
         cpu_txt = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
         ram_mb = r.rss_bytes / (1024 ** 2)
-        ram_style = "green"
+        ram_style = "peep.metric.ok"
         if ram_mb >= 2000:
-            ram_style = "bold red"
+            ram_style = "peep.metric.hot"
         elif ram_mb >= 800:
-            ram_style = "yellow"
+            ram_style = "peep.metric.warn"
         ram_txt = Text(f"{ram_mb:.0f} MB", style=ram_style)
 
         read_txt = color_bytes(r.read_bps, thresholds_mb_s=(2.0, 20.0))
@@ -583,7 +622,7 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
             tag_badge(r.tags),
             Text(f"{r.name} [{r.pid}]", style="bold"),
             service_badge(r.services),
-            Text(short_path(r.exe), style="dim"),
+            Text(short_path(r.exe), style="peep.muted"),
         )
     return table
 
@@ -609,14 +648,15 @@ def render_rows(
         rows.sort(key=lambda r: r.beef_score, reverse=True)
 
     ttl = title or f"{APP_NAME} — Top {sort_key.upper()} (sampled)"
-    table = build_table(rows, title=ttl, limit=limit)
+    console.print(Rule(ttl, style="peep.accent"))
+    table = build_table(rows, title="", limit=limit)
     console.print(table)
     console.print(
         Panel(
             Text(
-                "Tip: 'Type' = Service means it can run with no taskbar icon.\n"
-                "This version only *shows* what’s running. 'trim' (ending processes) is planned later.",
-                style="dim",
+                "Tip: ‘Type’ = Service means it can run with no taskbar icon.\n"
+                "This version only *shows* what’s running. ‘trim’ (ending processes) is planned later.",
+                style="peep.muted",
             ),
             box=box.SQUARE,
             title="Notes",
@@ -628,7 +668,7 @@ def render_rows(
 # --- Baseline snapshot/diff ---------------------------------------------------
 
 def snapshot_to_file(path: Path, include_windows: bool = False) -> Dict[str, Any]:
-    rows = collect_samples(seconds=0.6, include_windows=include_windows, include_services=True)
+    rows = _sampled(seconds=0.6, include_windows=include_windows, include_services=True)
     data = {
         "_meta": {"app": APP_NAME, "version": VERSION, "created_at": _now_ts()},
         "processes": [
@@ -652,7 +692,7 @@ def diff_from_file(path: Path, include_windows: bool = False) -> Dict[str, Any]:
     for p in before.get("processes", []):
         before_set.add((p.get("name", ""), p.get("exe", "")))
 
-    now_rows = collect_samples(seconds=0.6, include_windows=include_windows, include_services=True)
+    now_rows = _sampled(seconds=0.6, include_windows=include_windows, include_services=True)
     now_set = set((r.name, r.exe) for r in now_rows)
 
     new = sorted(list(now_set - before_set))
@@ -665,45 +705,71 @@ def diff_from_file(path: Path, include_windows: bool = False) -> Dict[str, Any]:
     }
 
 
+def _render_diff(d: Dict[str, Any], baseline_path: Path, new_limit: int = 50, gone_limit: int = 25) -> None:
+    new = d["new"]
+    gone = d["gone"]
+    console.print(Rule(f"Diff vs {baseline_path.name}", style="peep.accent"))
+    if new:
+        t = Table(box=box.SIMPLE, show_header=True, header_style="peep.heading")
+        t.add_column("", width=2)
+        t.add_column("Process", style="peep.heading")
+        t.add_column("Path", style="peep.muted")
+        for item in new[:new_limit]:
+            t.add_row(Text("+", style="peep.diff.added"), Text(item["name"], style="peep.heading"), short_path(item["exe"]))
+        console.print(t)
+    else:
+        console.print(Panel("No new processes since baseline.", style="peep.success", box=box.ROUNDED))
+    if gone:
+        t = Table(box=box.SIMPLE, show_header=True, header_style="peep.heading")
+        t.add_column("", width=2)
+        t.add_column("Process", style="peep.heading")
+        t.add_column("Path", style="peep.muted")
+        for item in gone[:gone_limit]:
+            t.add_row(Text("-", style="peep.diff.removed"), Text(item["name"], style="peep.heading"), short_path(item["exe"]))
+        console.print(t)
+
+
 # --- Interactive CLI (CLI03) --------------------------------------------------
 
-MENU_ITEMS: List[Tuple[str, str]] = [
-    ("beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
-    ("beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
-    ("beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
-    ("beefy peep mem", "RAM Hog Finder: high memory background apps"),
-    ("beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
-    ("beefy peep watch", "Live Watch: refresh a scoreboard every second"),
-    ("beefy baseline save", "Save a baseline snapshot (for later diff)"),
-    ("beefy baseline diff", "Compare against a baseline snapshot"),
-    ("help", "Show help"),
-    ("quit", "Exit"),
+MENU_ITEMS: List[Tuple[str, str, str]] = [
+    ("\U0001f50d", "beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
+    ("\U0001f525", "beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
+    ("\U0001f4be", "beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
+    ("\U0001f9e0", "beefy peep mem", "RAM Hog Finder: high memory background apps"),
+    ("\U0001f9f9", "beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
+    ("\U0001f440", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
+    ("\U0001f4be", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
+    ("\u2194\ufe0f", "beefy baseline diff", "Compare against a baseline snapshot"),
+    ("\u2753", "help", "Show help"),
+    ("\U0001f44b", "quit", "Exit"),
 ]
 
 
 
 def print_header() -> None:
     console.clear()
-    title = Text(f"{APP_NAME}  v{VERSION}", style="bold")
-    subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="dim")
+    title = Text(f"{APP_NAME}  v{VERSION}", style="peep.heading")
+    subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
     panel = Panel(
-        Align.left(Text(BANNER, style="bold cyan")),
+        Align.left(Text(BANNER, style="peep.brand")),
         title=title,
         subtitle=subtitle,
         box=box.HEAVY,
-        border_style="cyan",
+        border_style="peep.accent",
     )
     console.print(panel)
 
 
 def print_menu() -> None:
-    t = Table(box=box.SIMPLE, show_header=True, header_style="bold magenta")
-    t.add_column("Try this command", style="bold")
-    t.add_column("What it does", style="")
-    for cmd, desc in MENU_ITEMS:
-        t.add_row(cmd, desc)
+    console.print(Rule("Commands", style="peep.accent"))
+    t = Table(box=box.SIMPLE_HEAVY, show_header=True, header_style="peep.brand")
+    t.add_column("", width=2)
+    t.add_column("Try this command", style="peep.heading")
+    t.add_column("What it does")
+    for icon, cmd, desc in MENU_ITEMS:
+        t.add_row(icon, cmd, desc)
     console.print(t)
-    console.print(Text("Type a command (or press Enter for the recommended default).", style="dim"))
+    console.print(Text("Type a command (or press Enter for the recommended default).", style="peep.muted"))
 
 
 def interactive_loop() -> None:
@@ -731,7 +797,7 @@ def interactive_loop() -> None:
 
     while True:
         print_menu()
-        cmd = Prompt.ask(f"[bold cyan]{APP_NAME}[/bold cyan]", default="beefy peep all").strip().lower()
+        cmd = Prompt.ask(f"[peep.brand]{APP_NAME}[/peep.brand]", default="beefy peep all").strip().lower()
         # Allow users to type the same command they would type in the shell (teaches CLI-only usage).
         for prefix in ("beefy ", "peepbeefy "):
             if cmd.startswith(prefix):
@@ -740,7 +806,7 @@ def interactive_loop() -> None:
 
 
         if cmd in ("q", "quit", "exit"):
-            console.print(Text("Later 👋", style="bold"))
+            console.print(Text("Later \U0001f44b", style="peep.heading"))
             return
 
         if cmd in ("help", "?"):
@@ -777,29 +843,16 @@ def interactive_loop() -> None:
                 file = Prompt.ask("Baseline file name", default="baseline.json")
                 path = Path(file).expanduser().resolve()
                 snapshot_to_file(path, include_windows=include_windows)
-                console.print(Text(f"Saved baseline to: {path}", style="green"))
+                _success(f"Saved baseline to: {path}")
                 continue
             if len(parts) >= 2 and parts[1] == "diff":
                 file = Prompt.ask("Baseline file name", default="baseline.json")
                 path = Path(file).expanduser().resolve()
                 if not path.exists():
-                    console.print(Text(f"Baseline not found: {path}", style="bold red"))
+                    _error(f"Baseline not found: {path}")
                     continue
                 d = diff_from_file(path, include_windows=include_windows)
-                # Render diff
-                new = d["new"]
-                gone = d["gone"]
-                console.print(Panel(Text(f"Baseline: {path}", style="dim"), title="Diff", box=box.SQUARE))
-                if new:
-                    console.print(Text("New since baseline:", style="bold yellow"))
-                    for item in new[:30]:
-                        console.print(f"  + {item['name']}  {short_path(item['exe'])}")
-                else:
-                    console.print(Text("No new processes since baseline.", style="green"))
-                if gone:
-                    console.print(Text("\nGone since baseline:", style="bold"))
-                    for item in gone[:15]:
-                        console.print(f"  - {item['name']}  {short_path(item['exe'])}")
+                _render_diff(d, path, new_limit=30, gone_limit=15)
                 continue
 
         # peep commands
@@ -828,7 +881,7 @@ def interactive_loop() -> None:
                 continue
 
             # Normal peep modes
-            rows = collect_samples(seconds=seconds, include_windows=include_windows, include_services=include_services)
+            rows = _sampled(seconds=seconds, include_windows=include_windows, include_services=include_services)
 
             if mode == "cpu":
                 render_rows(rows, sort_key="cpu", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — CPU Hog Finder")
@@ -846,7 +899,7 @@ def interactive_loop() -> None:
             continue
 
         # Unknown input
-        console.print(Text("Unknown command. Type 'help' to see options.", style="bold red"))
+        _error("Unknown command. Type 'help' to see options.")
 
 
 # --- CLI02 / CLI01 commands ---------------------------------------------------
@@ -860,7 +913,7 @@ def peep_all(
     services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
 ):
     """Quick Scan (combined BEEF score)."""
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     render_rows(rows, sort_key="beef", limit=limit, fat_only=fat, title=f"{APP_NAME} — Quick Scan (BEEF Score)")
 
 
@@ -873,7 +926,7 @@ def peep_cpu(
     services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
 ):
     """CPU Hog Finder."""
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     render_rows(rows, sort_key="cpu", limit=limit, fat_only=fat, title=f"{APP_NAME} — CPU Hog Finder")
 
 
@@ -886,7 +939,7 @@ def peep_io(
     services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
 ):
     """Disk Hog Finder (stutter risk)."""
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     render_rows(rows, sort_key="io", limit=limit, fat_only=fat, title=f"{APP_NAME} — Disk Hog Finder")
 
 
@@ -899,7 +952,7 @@ def peep_mem(
     services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
 ):
     """RAM Hog Finder."""
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     render_rows(rows, sort_key="mem", limit=limit, fat_only=fat, title=f"{APP_NAME} — RAM Hog Finder")
 
 
@@ -911,7 +964,7 @@ def peep_clutter(
     services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
 ):
     """Show tagged gamer clutter: RGB / overlays / VR / VPN / etc."""
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     rows = [r for r in rows if r.tags]
     rows.sort(key=lambda r: r.beef_score, reverse=True)
     render_rows(rows, sort_key="beef", limit=limit, fat_only=False, title=f"{APP_NAME} — Gamer Clutter (tagged)")
@@ -952,7 +1005,7 @@ def baseline_save(
     """Save a baseline snapshot."""
     path = file.expanduser().resolve()
     snapshot_to_file(path, include_windows=deep)
-    console.print(Text(f"Saved baseline to: {path}", style="green"))
+    _success(f"Saved baseline to: {path}")
 
 
 @baseline_app.command("diff")
@@ -964,25 +1017,13 @@ def baseline_diff(
     """Diff current process set against a baseline snapshot."""
     path = file.expanduser().resolve()
     if not path.exists():
-        console.print(Text(f"Baseline not found: {path}", style="bold red"))
+        _error(f"Baseline not found: {path}")
         raise typer.Exit(code=2)
     d = diff_from_file(path, include_windows=deep)
     if json_out:
         console.print_json(json.dumps(d))
         return
-    new = d["new"]
-    gone = d["gone"]
-    console.print(Panel(Text(f"Baseline: {path}", style="dim"), title="Diff", box=box.SQUARE))
-    if new:
-        console.print(Text("New since baseline:", style="bold yellow"))
-        for item in new[:50]:
-            console.print(f"  + {item['name']}  {short_path(item['exe'])}")
-    else:
-        console.print(Text("No new processes since baseline.", style="green"))
-    if gone:
-        console.print(Text("\nGone since baseline:", style="bold"))
-        for item in gone[:25]:
-            console.print(f"  - {item['name']}  {short_path(item['exe'])}")
+    _render_diff(d, path)
 
 
 @dev_app.command("dump")
@@ -996,7 +1037,7 @@ def dev_dump(
     Developer dump: full JSON payload of sampled processes.
     This exists for power users / debugging / building the future 'trim' feature safely.
     """
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     payload = {
         "_meta": {"app": APP_NAME, "version": VERSION, "sample_seconds": seconds, "created_at": _now_ts()},
         "rows": [asdict(r) for r in rows],
@@ -1023,7 +1064,7 @@ def dev_info(
     if q.isdigit():
         pid = int(q)
 
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
     matches: List[ProcRow] = []
     if pid is not None:
         matches = [r for r in rows if r.pid == pid]
@@ -1032,20 +1073,24 @@ def dev_info(
         matches = [r for r in rows if needle in r.name.lower()]
 
     if not matches:
-        console.print(Text(f"No matches for: {query}", style="bold red"))
+        _error(f"No matches for: {query}")
         raise typer.Exit(code=1)
 
     for r in matches[:10]:
-        lines: List[Text] = []
-        lines.append(Text(f"Process: {r.name}  (PID {r.pid})", style="bold"))
-        lines.append(Text(f"Type: {r.kind}", style="cyan"))
-        lines.append(Text(f"User: {r.username}", style="dim"))
-        lines.append(Text(f"Path: {r.exe}", style="dim"))
+        # Build two-column detail table
+        detail = Table(box=None, show_header=False, padding=(0, 1))
+        detail.add_column("Field", style="peep.heading", width=10, no_wrap=True)
+        detail.add_column("Value")
+
+        detail.add_row("Process", Text(f"{r.name}  (PID {r.pid})", style="peep.heading"))
+        detail.add_row("Type", kind_badge(r.kind))
+        detail.add_row("User", Text(r.username, style="peep.muted"))
+        detail.add_row("Path", Text(r.exe, style="peep.muted"))
         if r.cmdline:
-            lines.append(Text(f"Cmd: {r.cmdline}", style="dim"))
+            detail.add_row("Cmd", Text(r.cmdline, style="peep.muted"))
         if r.tags:
             tag_txt = ", ".join([f"{TAG_DEFS.get(t, ('', t))[0]}{t}" for t in r.tags])
-            lines.append(Text(f"Tags: {tag_txt}", style="cyan"))
+            detail.add_row("Tags", Text(tag_txt, style="peep.tag"))
         if r.services:
             svc_lines = []
             for s in r.services[:10]:
@@ -1057,22 +1102,22 @@ def dev_info(
                     extra.append(s.status)
                 suffix = f" ({', '.join(extra)})" if extra else ""
                 svc_lines.append(f"- {dn}{suffix}")
-            lines.append(Text("Services:\n" + "\n".join(svc_lines), style="magenta"))
+            detail.add_row("Services", Text("\n".join(svc_lines), style="peep.service"))
 
         # Metrics
         cpu = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
         ram_mb = r.rss_bytes / (1024 ** 2)
-        ram = Text(f"{ram_mb:.0f} MB", style=("bold red" if ram_mb >= 2000 else "yellow" if ram_mb >= 800 else "green"))
+        ram = Text(f"{ram_mb:.0f} MB", style=("peep.metric.hot" if ram_mb >= 2000 else "peep.metric.warn" if ram_mb >= 800 else "peep.metric.ok"))
         read = color_bytes(r.read_bps, thresholds_mb_s=(2.0, 20.0))
         write = color_bytes(r.write_bps, thresholds_mb_s=(2.0, 20.0))
-        beef = Text(f"{r.beef_score:.1f}", style=("bold red" if r.beef_score >= 60 else "yellow" if r.beef_score >= 25 else "green"))
+        beef = Text(f"{r.beef_score:.1f}", style=("peep.metric.hot" if r.beef_score >= 60 else "peep.metric.warn" if r.beef_score >= 25 else "peep.metric.ok"))
         metrics = Text.assemble(
             ("BEEF ", "bold"), beef, ("   CPU ", "bold"), cpu,
             ("   RAM ", "bold"), ram, ("   Read ", "bold"), read, ("   Write ", "bold"), write
         )
 
-        body = Text("\n").join(lines)
-        console.print(Panel(body, title="Process Info", subtitle=metrics, box=box.SQUARE, border_style="cyan"))
+        console.print(Rule("Process Info", style="peep.accent"))
+        console.print(Panel(detail, subtitle=metrics, box=box.SQUARE, border_style="peep.accent"))
 
 
 def _dev_top(
@@ -1084,7 +1129,7 @@ def _dev_top(
     fat: bool,
     json_out: bool,
 ):
-    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = _sampled(seconds=seconds, include_windows=deep, include_services=services)
 
     if fat:
         rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
