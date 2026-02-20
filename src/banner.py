@@ -144,6 +144,7 @@ class BannerDatabase:
         current_category: Optional[str] = None
         current_name: Optional[str] = None
         current_lines: List[str] = []
+        current_metadata: Dict[str, str] = {}
         
         for line_num, line in enumerate(file, start=1):
             # Remove newline but preserve other whitespace
@@ -166,6 +167,7 @@ class BannerDatabase:
                         current_category = category.strip()
                         current_name = name.strip()
                         current_lines = []
+                        current_metadata = {}
                         state = ParserState.HEADER
                     except ValueError:
                         logger.warning(f"Line {line_num}: Invalid header format: {line}")
@@ -182,8 +184,11 @@ class BannerDatabase:
                 elif line.strip().startswith("-"):
                     # This is the separator line under the header, skip it
                     continue
+                elif line.strip().startswith("#") and ":" in line:
+                    # This is a metadata comment (must have colon to be valid metadata)
+                    self._parse_metadata_line(line, current_metadata)
                 else:
-                    # First content line
+                    # First content line (including lines starting with # that aren't metadata)
                     current_lines.append(line)
                     state = ParserState.CONTENT
                     
@@ -194,7 +199,8 @@ class BannerDatabase:
                         banner = self._create_banner(
                             current_category,
                             current_name,
-                            current_lines
+                            current_lines,
+                            current_metadata
                         )
                         if banner:
                             if current_category not in banners:
@@ -205,6 +211,7 @@ class BannerDatabase:
                     current_category = None
                     current_name = None
                     current_lines = []
+                    current_metadata = {}
                     state = ParserState.DELIMITER
                 else:
                     # Add line to current banner content
@@ -212,7 +219,12 @@ class BannerDatabase:
         
         # Handle case where file doesn't end with delimiter
         if state == ParserState.CONTENT and current_category and current_name and current_lines:
-            banner = self._create_banner(current_category, current_name, current_lines)
+            banner = self._create_banner(
+                current_category,
+                current_name,
+                current_lines,
+                current_metadata
+            )
             if banner:
                 if current_category not in banners:
                     banners[current_category] = []
@@ -221,11 +233,34 @@ class BannerDatabase:
         logger.info(f"Parsed {sum(len(b) for b in banners.values())} banners from {len(banners)} categories")
         return banners
     
+    def _parse_metadata_line(self, line: str, metadata: Dict[str, str]) -> None:
+        """Parse a metadata comment line and add to metadata dictionary.
+        
+        Metadata lines have the format: # key: value
+        
+        Args:
+            line: The line to parse
+            metadata: Dictionary to add parsed metadata to
+        """
+        # Remove leading # and whitespace
+        line = line.lstrip('#').strip()
+        
+        # Split on first colon
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = key.strip().lower()
+            value = value.strip()
+            
+            # Store in metadata dictionary
+            metadata[key] = value
+            logger.debug(f"Parsed metadata: {key} = {value}")
+    
     def _create_banner(
         self,
         category: str,
         name: str,
-        lines: List[str]
+        lines: List[str],
+        metadata: Optional[Dict[str, str]] = None
     ) -> Optional[Banner]:
         """Create a Banner object from parsed data.
         
@@ -233,6 +268,7 @@ class BannerDatabase:
             category: The category name
             name: The banner name
             lines: List of ASCII art lines
+            metadata: Optional dictionary of metadata key-value pairs
         
         Returns:
             Banner object, or None if invalid
@@ -245,10 +281,170 @@ class BannerDatabase:
         width = max(len(line) for line in lines) if lines else 0
         height = len(lines)
         
-        metadata = BannerMetadata(
+        # Parse metadata fields
+        metadata = metadata or {}
+        author = metadata.get('author')
+        description = metadata.get('description')
+        
+        # Use banner name as default description if not provided
+        if not description:
+            description = name
+        
+        # Parse animation_compatible (default to True)
+        animation_compatible = True
+        if 'animation_compatible' in metadata:
+            anim_value = metadata['animation_compatible'].lower()
+            animation_compatible = anim_value in ('true', 'yes', '1')
+        
+        # Parse flame_lines if present
+        flame_lines = None
+        if 'flame_lines' in metadata:
+            try:
+                flame_lines = [int(x.strip()) for x in metadata['flame_lines'].split(',')]
+            except ValueError:
+                logger.warning(f"Invalid flame_lines format for {category}:{name}")
+        
+        banner_metadata = BannerMetadata(
             category=category,
             name=name,
-            dimensions=(width, height)
+            author=author,
+            description=description,
+            dimensions=(width, height),
+            animation_compatible=animation_compatible
         )
         
-        return Banner(metadata=metadata, lines=lines)
+        return Banner(metadata=banner_metadata, lines=lines)
+    
+    def get_banner(
+        self,
+        category: Optional[str] = None,
+        name: Optional[str] = None
+    ) -> Banner:
+        """Retrieve a specific banner or random selection.
+        
+        Args:
+            category: Optional category to filter by
+            name: Optional specific banner name to retrieve
+        
+        Returns:
+            Banner object matching the criteria, or a random banner if not found,
+            or the fallback banner if no banners are available
+        """
+        # Load banners if not already loaded
+        if not self._cache:
+            self._cache = self.load_banners()
+        
+        # If no banners loaded, return fallback
+        if not self._cache:
+            logger.warning("No banners available, using fallback")
+            return self._get_fallback_banner()
+        
+        # If both category and name specified, try to find exact match
+        if category and name:
+            if category in self._cache:
+                for banner in self._cache[category]:
+                    if banner.metadata.name == name:
+                        logger.info(f"Selected banner: {category}:{name}")
+                        return banner
+            logger.warning(f"Banner {category}:{name} not found, selecting random")
+            return self.get_random_banner()
+        
+        # If only category specified, get random from that category
+        if category:
+            return self.get_random_banner(categories=[category])
+        
+        # Otherwise, get random from all categories
+        return self.get_random_banner()
+    
+    def get_random_banner(
+        self,
+        categories: Optional[List[str]] = None
+    ) -> Banner:
+        """Select a random banner, optionally filtered by categories.
+        
+        Args:
+            categories: Optional list of categories to select from
+        
+        Returns:
+            Randomly selected banner, or fallback if no banners available
+        """
+        import random
+        
+        # Load banners if not already loaded
+        if not self._cache:
+            self._cache = self.load_banners()
+        
+        # If no banners loaded, return fallback
+        if not self._cache:
+            logger.warning("No banners available, using fallback")
+            return self._get_fallback_banner()
+        
+        # Filter by categories if specified
+        if categories:
+            available_banners = []
+            for cat in categories:
+                if cat in self._cache:
+                    available_banners.extend(self._cache[cat])
+            
+            if not available_banners:
+                logger.warning(f"No banners found in categories {categories}, using all categories")
+                available_banners = [
+                    banner
+                    for banners in self._cache.values()
+                    for banner in banners
+                ]
+        else:
+            # Get all banners from all categories
+            available_banners = [
+                banner
+                for banners in self._cache.values()
+                for banner in banners
+            ]
+        
+        # If no banners available, return fallback
+        if not available_banners:
+            logger.warning("No banners available, using fallback")
+            return self._get_fallback_banner()
+        
+        # Select random banner
+        selected = random.choice(available_banners)
+        logger.info(f"Selected random banner: {selected.metadata.category}:{selected.metadata.name}")
+        return selected
+    
+    def list_categories(self) -> List[str]:
+        """Return all available banner categories.
+        
+        Returns:
+            List of category names
+        """
+        # Load banners if not already loaded
+        if not self._cache:
+            self._cache = self.load_banners()
+        
+        return list(self._cache.keys())
+    
+    def _get_fallback_banner(self) -> Banner:
+        """Return hardcoded default banner for error recovery.
+        
+        Returns:
+            A simple fallback banner that always works
+        """
+        fallback_lines = [
+            "                          _______              ___       ",
+            " .-----.-----.-----.-----|   _   .-----.-----.'  _.--.--.  ",
+            " |  _  |  -__|  -__|  _  |.  1   |  -__|  -__|   _|  |  |  ",
+            " |   __|_____|_____|   __|.  _   |_____|_____|__| |___  |  ",
+            " |__|              |__|  |:  1    \\               |_____|  ",
+            "                         |::.. .  /                        ",
+            "                         `-------'                         "
+        ]
+        
+        metadata = BannerMetadata(
+            category="FALLBACK",
+            name="DEFAULT",
+            description="Default fallback banner",
+            dimensions=(59, 7),
+            animation_compatible=True
+        )
+        
+        return Banner(metadata=metadata, lines=fallback_lines)
