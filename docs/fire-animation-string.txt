@@ -1,3 +1,157 @@
+---
+FIRE ANIMATION DESIGN — install.py Banner
+
+1. PALETTE GRADIENT (12-step)
+
+Derived from the DOOM PSX fire convention: a continuous gradient from barely-visible ember through the user's 5 flame colors to a near-white hot tip. The 5 user-specified colors sit at even indices (2, 4, 6, 8,    
+10). The 7 intermediates exist solely so flicker can reach smoothly between adjacent flame zones.
+
+Index  Hex       Name               Role
+─────  ───────   ─────────────────  ─────────────────────────────────
+00    #4F0F07   dark ember         below Line 5, barely visible
+01    #6D1504   mid ember          transition
+02    #8B1A00   deep ember red     LINE 5 BASE (ember)
+03    #AB1E00   warm ember         transition
+04    #CC2200   dark red-orange    LINE 4 BASE (lower flame)
+05    #E53400   red-orange         transition
+06    #FF4500   orange-red         LINE 3 BASE (flame body)
+07    #FF6800   bright orange      transition
+08    #FF8C00   dark orange        LINE 2 BASE (upper flame)
+09    #FFB400   amber              transition
+10    #FFD700   bright yellow      LINE 1 BASE (flame tips)
+11    #FFE55C   hot yellow         above Line 1, brightest peak
+
+Why 12 and not 8 or 37: The DOOM palette uses 37 colors but targets pixel-scale resolution. We're coloring individual ASCII characters — 12 steps is the right density for ±2-step flicker across 5 flame zones. More 
+would be wasted (human eye can't distinguish adjacent hex values at character scale). Fewer would produce visible banding.
+
+2. LINE-TO-PALETTE MAPPING
+
+Each flame line (1-5) has a base palette index and a flicker range — the indices it can reach via random per-character variation.
+
+Line   Zone      Base Index   Flicker Range   Clamp
+─────  ────────  ──────────   ─────────────   ──────
+01    TIPS         10          [8, 11]        max 11
+02    UPPER         8          [6, 10]
+03    BODY          6          [4, 8]
+04    LOWER         4          [2, 6]
+05    EMBER         2          [0, 4]         min 0
+
+Key property: adjacent lines overlap by 2 indices. Line 1 at -2 = index 8, which is Line 2's base. Line 2 at +2 = index 10, which is Line 1's base. This overlap creates the seamless heat diffusion that defines the 
+DOOM fire look — no hard color boundaries between flame zones.
+
+Text lines (6-8) are fixed, no flicker:
+
+Line   Zone      Color     Style
+─────  ────────  ───────   ──────────
+06    TEXT-HOT  #FFFFFF   bold
+07    TEXT-MID  #CCCCCC   normal
+08    TEXT-DIM  #999999   dim
+
+3. FLICKER PROBABILITY DISTRIBUTION
+
+Two independent rolls per character:
+
+Roll 1: Does this character flicker at all?
+
+Line-specific intensity — how unstable is this flame zone:
+
+Line   Zone      Flicker Probability   Rationale
+─────  ────────  ───────────────────   ─────────────────────────
+01    TIPS         100%               Tips are wild, always moving
+02    UPPER         80%               Active combustion zone
+03    BODY          65%               Dense core, some stability
+04    LOWER         45%               Heavy base, slower movement
+05    EMBER         30%               Embers glow steadily, occasional flare
+
+If the roll FAILS (character doesn't flicker), it stays at its line's base palette index.
+
+Roll 2: If flickering, how far from base?
+
+Weighted distribution with slight warm bias (flames naturally push energy upward):
+
+Offset   Weight   Probability   Visual effect
+──────   ──────   ───────────   ──────────────────────────
+0       40       0.40         Base color (most common)
++1       18       0.18         One step warmer (brighter)
+-1       17       0.17         One step cooler (darker)
++2       13       0.13         Two steps warmer (bright flash)
+-2       12       0.12         Two steps cooler (dark dip)
+
+Warm bias: 31% warmer vs 29% cooler. Subtle but perceptible — the flame "wants" to be bright.
+
+Rule: Space characters are NEVER colored. Fire doesn't fill empty space. Only printable characters receive flicker. This preserves the shape of the flames — the sway motion comes from the whitespace, and coloring  
+whitespace would destroy that.
+
+4. SWAY FRAME DATA
+
+9 frames total, stored as lists of 8 raw ASCII strings. The forward frames (01-05) are extracted directly from the spec file. The B-frames (02-b through 05-b) are constructed by mirroring: for each line, the offset
+from default is sign-flipped.
+
+Frame sequence:  01 → 02 → 03 → 04 → 05 → 02-b → 03-b → 04-b → 05-b → repeat
+Frame count:     9
+FPS:             8 (125ms per frame — fast enough for smooth sway, slow enough for Rich Live)
+
+Lines 6-8 are identical in every frame (anchored text body = fuel source).
+
+5. INTEGRATION PLAN FOR install.py
+
+New imports (line ~41):
+import random
+from rich.live import Live
+
+New constants (after existing design tokens, ~line 68):
+FIRE_PALETTE   — tuple of 12 hex strings (index 0-11)
+FIRE_STYLES    — tuple of 12 pre-built Style(color=hex) objects
+TEXT_STYLES     — tuple of 3 pre-built Style objects for lines 6-8
+LINE_CONFIG    — tuple of 5 tuples: (base_index, flicker_prob, min_idx, max_idx)
+FLICKER_OFFSETS — tuple: (0, 0, 0, 0, +1, +1, +1, -1, -1, -1, +2, +2, -2, -2)
+                pre-weighted for random.choice (no runtime probability math)
+SWAY_FRAMES    — tuple of 9 tuples, each containing 8 strings (the raw art lines)
+
+Pre-building FIRE_STYLES avoids allocating Style objects every frame. FLICKER_OFFSETS uses a pre-weighted tuple so random.choice() naturally produces the right distribution (faster than random.choices() with       
+weights for single picks).
+
+New function: colorize_line(line: str, line_idx: int, rng: random.Random) -> Text
+- For flame lines (0-4): iterate each character
+- Space → append unstyled
+- Printable → roll flicker prob; if flickering, pick offset via rng.choice(FLICKER_OFFSETS), clamp to range, apply FIRE_STYLES[clamped_index]; if not flickering, apply FIRE_STYLES[base_index]
+- For text lines (5-7): apply TEXT_STYLES[line_idx - 5] to entire line
+- Returns a Text object
+
+New function: build_fire_frame(frame_idx: int, rng: random.Random) -> Text
+- Gets the 8 lines from SWAY_FRAMES[frame_idx]
+- Calls colorize_line() for each
+- Joins with newlines into a single Text object
+- Returns the composed frame
+
+New function: animate_banner(duration: float = 3.0, fps: int = 8)
+- Creates a random.Random() instance (isolated RNG, no global state)
+- Builds the Panel shell (DOUBLE border, title, subtitle — same as current show_banner())
+- Uses Live(panel, console=console, refresh_per_second=fps) context
+- Frame loop:
+- Cycle through SWAY_FRAMES indices: 0→1→2→3→4→5→6→7→8→0→...
+- Each tick: call build_fire_frame() with fresh flicker, rebuild panel content, live.update()
+- After duration seconds: exit loop
+- After Live exits: print the final frozen frame (last rendered panel stays on screen)
+- Then print tagline, divider, installer identity (same as current show_banner() post-panel content)
+
+Modified function: show_banner()
+- Replace static Text(BANNER_ART, style=...) + Panel(...) with call to animate_banner()
+- Everything below the banner (tagline, divider, installer identity) moves into animate_banner() or stays in show_banner() after the call
+- The animation runs for 3 seconds, then the installer steps begin below
+
+Unchanged: run_step(), all 5 installation actions, show_success(), show_uv_guide(), main() — none of these need modification.
+
+6. PERFORMANCE NOTES
+
+- Pre-built Style objects: 12 fire + 3 text = 15 objects, allocated once at import
+- Pre-weighted flicker tuple: random.choice() on a tuple is O(1), no weight computation per character
+- Text.append() per character: ~60 chars/line * 5 flame lines = ~300 appends per frame at 8 FPS = 2400 appends/sec — trivial for Rich
+- Live context handles terminal diff updates efficiently — only redraws changed characters
+- Total animation: 3 seconds * 8 FPS = 24 frames rendered
+
+---
+
 # ══════════════════════════════════════════════════════════════
 #  FIRE ANIMATION — peepBeefy Banner
 #

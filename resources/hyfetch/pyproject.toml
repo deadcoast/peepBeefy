@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "HyFetch"
+dynamic = ["version"]
+description = "neofetch with flags <3"
+readme = "README.md"
+authors = [
+    { name = "Azalea Gui", email = "me@hydev.org" },
+]
+requires-python = ">=3.7"
+license = "MIT"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    # Universal dependencies
+    'typing_extensions; python_version < "3.8"',
+
+    # Windows dependencies
+    'psutil ; platform_system=="Windows"',
+    'colorama>=0.4.6 ; platform_system=="Windows"',
+]
+
+[project.urls]
+Homepage = "https://github.com/hykilpikonna/HyFetch"
+
+[project.scripts]
+"hyfetch.v1" = "hyfetch.__main__:run_py"
+"hyfetch.rs" = "hyfetch.__main__:run_rust"
+"hyfetch" = "hyfetch.__main__:run_rust"
+
+[tool.hatch.version]
+source = "regex"
+path = "Cargo.toml"
+regex = 'version = "(?P<version>.+?)"'
+
+[tool.hatch.build]
+exclude = ["/tools"]
+
+[tool.hatch.build.targets.wheel.files]
+"{py_scripts}/neowofetch" = "hyfetch/scripts/neowofetch"
