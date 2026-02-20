@@ -43,7 +43,7 @@ The implementation will use **Python** with the Rich library for terminal render
   - [x] 1.6 Write property test for random banner selection
     - **Property 1: Banner Random Selection Distribution**
     - **Validates: Requirements 1.2, 1.4**
-  
+  ;/
   - [x] 1.7 Add banner metadata parsing support
     - Parse metadata comments (lines starting with "# key: value") after banner headers
     - Extract author, description, animation_compatible, flame_lines fields
@@ -185,17 +185,17 @@ The implementation will use **Python** with the Rich library for terminal render
     - Test fallback works when files missing
     - _Requirements: 1.1, 10.1_
 
-- [ ] 6. Checkpoint - Phase 1 Complete
+- [x] 6. Checkpoint - Phase 1 Complete
   - Ensure all Phase 1 tests pass, verify banner displays on startup with random selection, confirm configuration persists between runs. Ask the user if questions arise.
 
-- [ ] 7. Phase 2: Animation System - Fire Animation Engine
-  - [ ] 7.1 Create animation.py module with FirePalette
+- [x] 7. Phase 2: Animation System - Fire Animation Engine
+  - [x] 7.1 Create animation.py module with FirePalette
     - Implement `FirePalette` class with 12-step DOOM PSX color palette
     - Define COLORS tuple with hex color codes (ember → flame → tips)
     - Create STYLES tuple with Rich Style objects for each color
     - _Requirements: 3.1, 3.3_
   
-  - [ ] 7.2 Extract and generalize fire animation from install.py
+  - [x] 7.2 Extract and generalize fire animation from install.py
     - Create `FireAnimator` class with intensity parameter
     - Implement `animate_banner()` method accepting banner, console, duration, fps
     - Build animation frames with per-character coloring
@@ -203,18 +203,18 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement frame timing with configurable FPS
     - _Requirements: 3.1, 3.2, 3.3_
   
-  - [ ] 7.3 Implement flame zone detection heuristic
+  - [x] 7.3 Implement flame zone detection heuristic
     - Implement `_detect_zones()` method returning flame_lines and text_lines
     - Use 60/40 split heuristic (top 60% flame, bottom 40% text)
     - Support metadata override via flame_lines field
     - _Requirements: 3.4, 3.5_
   
-  - [ ] 7.4 Write property test for flame zone detection
+  - [x] 7.4 Write property test for flame zone detection
     - **Property 15: Fire Animation Dimension Adaptation**
     - **Property 16: Flame Zone Coloring Separation**
     - **Validates: Requirements 3.4, 3.5**
   
-  - [ ] 7.5 Implement flame coloring algorithm
+  - [x] 7.5 Implement flame coloring algorithm
     - Implement `_apply_flame_coloring()` method for flame zone lines
     - Calculate base palette index based on line position (hotter at top)
     - Apply flicker effect with random palette offsets
@@ -222,20 +222,20 @@ The implementation will use **Python** with the Rich library for terminal render
     - Preserve spacing characters without coloring
     - _Requirements: 3.3, 3.5_
   
-  - [ ] 7.6 Implement text coloring algorithm with ember cracks
+  - [x] 7.6 Implement text coloring algorithm with ember cracks
     - Implement `_apply_text_coloring()` method for text zone lines
     - Use white → gray → dim gradient based on line position
     - Apply ember crack effect with random hot color spots
     - Adjust crack probability based on line position
     - _Requirements: 3.3, 3.5_
   
-  - [ ] 7.7 Add animation intensity customization
+  - [x] 7.7 Add animation intensity customization
     - Implement intensity multiplier for flicker and crack probabilities
     - Support "subtle" (0.5x), "normal" (1.0x), "intense" (1.5x) modes
     - Apply intensity to both flame and text coloring
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
   
-  - [ ] 7.8 Write property tests for animation behavior
+  - [x] 7.8 Write property tests for animation behavior
     - **Property 17: Animation Duration Respect**
     - **Property 18: Animation Intensity Differentiation**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.5**

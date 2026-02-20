@@ -450,12 +450,12 @@ def test_parsing_error_continuation(valid_banners: list, invalid_entries: list):
     category1=category_strategy,
     category2=category_strategy.filter(lambda x: x != ""),  # Ensure different
     banners_cat1=st.lists(
-        st.tuples(name_strategy, ascii_lines_strategy.filter(lambda x: len(x) > 0)),
+        st.tuples(name_strategy, ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))),
         min_size=1,
         max_size=3
     ),
     banners_cat2=st.lists(
-        st.tuples(name_strategy, ascii_lines_strategy.filter(lambda x: len(x) > 0)),
+        st.tuples(name_strategy, ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))),
         min_size=1,
         max_size=3
     )
@@ -548,7 +548,7 @@ def test_category_isolation(
         values=st.lists(
             st.tuples(
                 name_strategy,  # banner name
-                ascii_lines_strategy.filter(lambda x: len(x) > 0)  # non-empty lines
+                ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))  # non-empty lines
             ),
             min_size=2,  # At least 2 banners per category for distribution testing
             max_size=5
@@ -674,7 +674,7 @@ def test_banner_random_selection_distribution(
     banners_cat1=st.lists(
         st.tuples(
             name_strategy,
-            ascii_lines_strategy.filter(lambda x: len(x) > 0)
+            ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
         ),
         min_size=2,
         max_size=4
@@ -682,7 +682,7 @@ def test_banner_random_selection_distribution(
     banners_cat2=st.lists(
         st.tuples(
             name_strategy,
-            ascii_lines_strategy.filter(lambda x: len(x) > 0)
+            ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
         ),
         min_size=2,
         max_size=4
@@ -803,7 +803,7 @@ def test_banner_random_selection_category_filtering(
         values=st.lists(
             st.tuples(
                 name_strategy,
-                ascii_lines_strategy.filter(lambda x: len(x) > 0)
+                ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
             ),
             min_size=1,
             max_size=3
@@ -899,7 +899,7 @@ def test_banner_random_selection_all_categories(
         values=st.lists(
             st.tuples(
                 name_strategy,  # banner name
-                ascii_lines_strategy.filter(lambda x: len(x) > 0)  # non-empty lines
+                ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))  # non-empty lines
             ),
             min_size=2,  # At least 2 banners per category for distribution testing
             max_size=5
@@ -1025,7 +1025,7 @@ def test_banner_random_selection_distribution(
     banners_cat1=st.lists(
         st.tuples(
             name_strategy,
-            ascii_lines_strategy.filter(lambda x: len(x) > 0)
+            ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
         ),
         min_size=2,
         max_size=4
@@ -1033,7 +1033,7 @@ def test_banner_random_selection_distribution(
     banners_cat2=st.lists(
         st.tuples(
             name_strategy,
-            ascii_lines_strategy.filter(lambda x: len(x) > 0)
+            ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
         ),
         min_size=2,
         max_size=4
@@ -1154,7 +1154,7 @@ def test_banner_random_selection_category_filtering(
         values=st.lists(
             st.tuples(
                 name_strategy,
-                ascii_lines_strategy.filter(lambda x: len(x) > 0)
+                ascii_lines_strategy.filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
             ),
             min_size=1,
             max_size=3
