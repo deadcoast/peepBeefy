@@ -41,8 +41,12 @@ from rich.traceback import install as rich_traceback_install
 rich_traceback_install(show_locals=False, suppress=[typer, psutil])
 
 PEEP_THEME = Theme({
-    "peep.accent": "cyan",
-    "peep.brand": "bold cyan",
+    "peep.accent": "#555555",                # Structural borders (dark grey)
+    "peep.accent.lite": "#777777",           # Title bar decorations (lighter grey)
+    "peep.brand": "bold #777777",            # Generic label branding
+    "peep.brand.peep": "#CCCCCC",            # "peep" in peepBeefy
+    "peep.brand.b": "bold #AB1E00",          # "B" in peepBeefy (warm ember)
+    "peep.brand.eefy": "#8B1A00",            # "eefy" in peepBeefy (deep ember)
     "peep.error": "bold red",
     "peep.success": "green",
     "peep.muted": "dim",
@@ -93,6 +97,9 @@ BANNER = r"""
 
 APP_NAME = "peepBeefy"
 VERSION = "0.0.3"
+
+# Rich markup for the branded name — used in titles, prompts, panel headers.
+BRANDED_NAME = "[peep.brand.peep]peep[/][peep.brand.b]B[/][peep.brand.eefy]eefy[/]"
 
 
 # --- Data model ---------------------------------------------------------------
@@ -658,7 +665,7 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
         title_style="peep.heading",
         box=box.SIMPLE_HEAVY,
         show_lines=False,
-        header_style="peep.brand",
+        header_style="peep.heading",
         padding=(0, 1),
     )
     table.add_column("BEEF", justify="left", no_wrap=True, min_width=14)
@@ -856,10 +863,10 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
 
 def print_header() -> None:
     console.clear()
-    title = Text(f"{APP_NAME}  v{VERSION}", style="peep.heading")
+    title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
     subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
     panel = Panel(
-        Align.left(Text(BANNER, style="peep.brand")),
+        Align.left(Text(BANNER, style="peep.accent.lite")),
         title=title,
         subtitle=subtitle,
         box=box.HEAVY,
@@ -877,7 +884,7 @@ def print_menu() -> None:
         t.add_row(icon, cmd, desc)
     console.print(Panel(
         t,
-        title="[peep.brand]Commands[/peep.brand]",
+        title=f"[peep.accent.lite]──[/] {BRANDED_NAME} [peep.accent.lite]Commands ──[/]",
         subtitle="[peep.muted]Type a command or press Enter for the default[/peep.muted]",
         box=box.ROUNDED,
         border_style="peep.accent",
@@ -910,7 +917,7 @@ def interactive_loop() -> None:
 
     while True:
         print_menu()
-        cmd = Prompt.ask(f"[peep.brand]{APP_NAME}[/peep.brand]", default="beefy peep all").strip().lower()
+        cmd = Prompt.ask(BRANDED_NAME, default="beefy peep all").strip().lower()
         # Allow users to type the same command they would type in the shell (teaches CLI-only usage).
         for prefix in ("beefy ", "peepbeefy "):
             if cmd.startswith(prefix):

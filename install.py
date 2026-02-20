@@ -58,12 +58,17 @@ from rich import box
 #  No color literals outside this block. Ever.
 # ═══════════════════════════════════════════════════════════════
 
-C      = "#00d7d7"       # cyan — primary / structural
-CL     = "#5fffff"       # cyan lite — highlights
+C      = "#555555"       # dark grey — borders / structural
+CL     = "#777777"       # grey lite — title bar decorations
 G      = "#00ff87"       # green — pass
 R      = "#ff005f"       # red — fail
 A      = "#ffd700"       # amber — dev / warning
 D      = "#6c6c6c"       # dim — secondary
+
+# Brand colors — "peep" + "B" + "eefy" split
+BP     = "#CCCCCC"       # brand: "peep"
+BB     = "#AB1E00"       # brand: "B"  (warm ember — fire palette 03)
+BE     = "#8B1A00"       # brand: "eefy" (deep ember — fire palette 02)
 
 PW     = 72              # panel width — fits 80-col terminals with margin
 PACE   = 0.20            # inter-step rhythm (seconds)
@@ -186,6 +191,11 @@ TEXT_CRACK_CONFIG = (
     (0.06, (2, 4)),      # Line 8:  6% chance -> ember / dark-red
 )
 
+# Line 5 font mask: character positions that are part of the "peepBeefy" word
+# (mostly '_', one '|'). These get text-style coloring instead of fire coloring.
+# Non-font chars in Line 5 (parentheses, backslashes) keep ember fire coloring.
+_LINE5_FONT_INDICES = frozenset({2, 4, 8, 13, 19, 21, 26, 30, 35, 40, 43, 44, 48})
+
 # Per-line: (base_palette_index, flicker_probability, min_index, max_index)
 LINE_CONFIG = (
     (10, 1.00, 8, 11),   # Line 1 TIPS:  always flickering
@@ -228,13 +238,13 @@ _FLAME_STRIPPED = tuple(line.lstrip(" ") for line in _FLAME_DEFAULTS)
 # Forward frames measured from hand-crafted art; B-frames are mirrors.
 _SWAY_OFFSETS = (
     ( 0,  0,  0,  0,  0),   # 01:   default
-    (-5, -3, -1, -1, +1),   # 02:   lean left
+    (-5, -3, -1, -1,  0),   # 02:   lean left      (L5 grounded)
     (-4, -2,  0,  0,  0),   # 03:   deeper left
-    (-1, -1, +1, +2, +1),   # 04:   pulling right
+    (-1, -1, +1, +2,  0),   # 04:   pulling right   (L5 grounded)
     ( 0,  0,  0,  0,  0),   # 05:   return to default
-    (+5, +3, +1, +1, -1),   # 02-b: lean right
+    (+5, +3, +1, +1,  0),   # 02-b: lean right      (L5 grounded)
     (+4, +2,  0,  0,  0),   # 03-b: deeper right
-    (+1, +1, -1, -2, -1),   # 04-b: pulling left
+    (+1, +1, -1, -2,  0),   # 04-b: pulling left     (L5 grounded)
     ( 0,  0,  0,  0,  0),   # 05-b: return to default
 )
 
@@ -283,9 +293,15 @@ def _build_fire_frame(frame_idx: int, rng: random.Random) -> Text:
 
         # Flame line: per-character coloring
         base_idx, flicker_prob, lo, hi = LINE_CONFIG[i]
-        for ch in line:
+        for ci, ch in enumerate(line):
             if ch == " ":
                 result.append(ch)
+            elif i == 4 and ci in _LINE5_FONT_INDICES:
+                # Line 5 font character — text style with crack effect
+                if rng.random() < 0.20:
+                    result.append(ch, style=FIRE_STYLES[rng.choice((10, 11))])
+                else:
+                    result.append(ch, style=TEXT_STYLES[0])
             else:
                 if rng.random() < flicker_prob:
                     offset = rng.choice(FLICKER_OFFSETS)
@@ -301,7 +317,7 @@ def _make_banner_panel(art: Text) -> Panel:
     """Wrap fire frame in the standard banner Panel."""
     return Panel(
         Align.center(art),
-        title=f"[bold {CL}]═══ peepBeefy ═══[/]",
+        title=f"[{CL}]═══ [/][{BP}]peep[/][bold {BB}]B[/][{BE}]eefy[/][{CL}] ═══[/]",
         subtitle=f"[{D}]v0.0.4[/]",
         border_style=C,
         box=box.DOUBLE,
