@@ -1,12 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM peepBeefy launcher for Windows
+REM peepBeefy launcher for Windows v0.0.4
 REM - Opens the interactive CLI with minimal typing.
 REM - Requires Python 3 and the deps: psutil, rich, typer.
 
 set SCRIPT_DIR=%~dp0
-set SCRIPT=%SCRIPT_DIR%main.py
+set SCRIPT=%SCRIPT_DIR%src\main.py
 
 where py >nul 2>nul
 if errorlevel 1 (

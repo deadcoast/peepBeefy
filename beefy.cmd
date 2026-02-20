@@ -1,14 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM beefy / peepBeefy command wrapper
+REM beefy / peepBeefy command wrapper v0.0.4
 REM Usage:
 REM   beefy            -> starts interactive mode
 REM   beefy peep io    -> CLI-only mode
 REM   beefy --help     -> help
 
 set SCRIPT_DIR=%~dp0
-set SCRIPT=%SCRIPT_DIR%main.py
+set SCRIPT=%SCRIPT_DIR%src\main.py
 
 where py >nul 2>nul
 if errorlevel 1 (
