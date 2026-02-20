@@ -56,14 +56,14 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Property 20: Banner Metadata Default Fallback**
     - **Validates: Requirements 9.1, 9.2, 9.5**
 
-- [-] 2. Phase 1: Core Infrastructure - Configuration System
-  - [ ] 2.1 Create config.py module with configuration data models
+- [x] 2. Phase 1: Core Infrastructure - Configuration System
+  - [x] 2.1 Create config.py module with configuration data models
     - Implement `BannerConfig` dataclass with mode, selected_banner, selected_categories, animation settings
     - Implement `AppConfig` dataclass with version, first_run_complete, theme_variant, banner, user_preferences
     - Add default values matching design specification
     - _Requirements: 2.1, 2.2, 2.3, 6.7_
   
-  - [ ] 2.2 Implement ConfigManager class with JSON persistence
+  - [x] 2.2 Implement ConfigManager class with JSON persistence
     - Create `ConfigManager` class with CONFIG_DIR and CONFIG_FILE class variables
     - Implement `load()` method to read JSON config from disk
     - Implement `save()` method with atomic write (temp file + rename)
@@ -71,13 +71,13 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle FileNotFoundError by returning default AppConfig
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
   
-  - [ ] 2.3 Write property tests for configuration persistence
+  - [x] 2.3 Write property tests for configuration persistence
     - **Property 5: Configuration Round-Trip Preservation**
     - **Property 6: Configuration Directory Creation**
     - **Property 7: Configuration JSON Validity**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 3.6, 6.2, 6.3, 6.7, 7.5, 11.1**
   
-  - [ ] 2.4 Add configuration validation and error handling
+  - [x] 2.4 Add configuration validation and error handling
     - Implement schema validation in `load()` method
     - Validate animation_duration range (0.5-10.0)
     - Validate animation_fps range (4-30)
@@ -86,19 +86,19 @@ The implementation will use **Python** with the Rich library for terminal render
     - Backup corrupted config files before creating fresh config
     - _Requirements: 6.4, 6.5, 10.6, 10.7_
   
-  - [ ] 2.5 Write property tests for configuration validation
+  - [x] 2.5 Write property tests for configuration validation
     - **Property 8: Configuration Schema Validation**
     - **Property 26: Corrupted Config Recovery**
     - **Validates: Requirements 6.4, 10.6, 10.7**
   
-  - [ ] 2.6 Implement configuration migration system
+  - [x] 2.6 Implement configuration migration system
     - Implement `migrate()` method with version chain support
     - Add `is_first_run()` method to detect missing config
     - Create migration function template for future schema changes
     - Log migration operations at INFO level
     - _Requirements: 6.6, 12.1, 14.3_
   
-  - [ ] 2.7 Write property test for configuration migration
+  - [x] 2.7 Write property test for configuration migration
     - **Property 9: Configuration Version Migration**
     - **Validates: Requirements 6.6**
 
