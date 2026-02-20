@@ -573,33 +573,49 @@ def kind_badge(kind: str) -> Text:
     return Text(kind, style="peep.metric.warn")
 
 
+def beef_bar(score: float, max_score: float) -> Text:
+    """Render BEEF score as a visual bar with number. Always shows relative weight."""
+    BAR_WIDTH = 8
+    fill = min(BAR_WIDTH, int((score / max(max_score, 1.0)) * BAR_WIDTH))
+    empty = BAR_WIDTH - fill
+
+    if score >= 60:
+        bar_style = "peep.metric.hot"
+    elif score >= 25:
+        bar_style = "peep.metric.warn"
+    elif score >= 5:
+        bar_style = "peep.accent"
+    else:
+        bar_style = "peep.muted"
+
+    bar = Text()
+    bar.append("\u2588" * fill, style=bar_style)
+    bar.append("\u2591" * empty, style="peep.muted")
+    bar.append(f" {score:.0f}", style=bar_style)
+    return bar
+
+
 def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
+    display_rows = rows[:limit]
+    max_beef = max((r.beef_score for r in display_rows), default=1.0) if display_rows else 1.0
+
     table = Table(
         title=title,
-        title_style="bold",
-        box=box.SIMPLE_HEAVY,
+        title_style="peep.heading",
+        box=box.HEAVY_HEAD,
         show_lines=False,
-        header_style="bold",
-        row_styles=["", "dim"],
+        header_style="peep.brand",
+        padding=(0, 1),
+        collapse_padding=True,
     )
-    table.add_column("BEEF", justify="right", style="bold")
-    table.add_column("CPU%", justify="right")
-    table.add_column("RAM", justify="right")
-    table.add_column("Read/s", justify="right")
-    table.add_column("Write/s", justify="right")
-    table.add_column("Type", justify="left")
-    table.add_column("Tags", justify="left")
-    table.add_column("Process", justify="left")
-    table.add_column("Service", justify="left")
-    table.add_column("Path", justify="left")
+    table.add_column("BEEF", justify="left", no_wrap=True)
+    table.add_column("CPU%", justify="right", width=6)
+    table.add_column("RAM", justify="right", width=8)
+    table.add_column("IO", justify="right", width=10)
+    table.add_column("Process", justify="left", ratio=2)
+    table.add_column("Info", justify="left", ratio=1)
 
-    for r in rows[:limit]:
-        beef_style = "peep.metric.ok"
-        if r.beef_score >= 60:
-            beef_style = "peep.metric.hot"
-        elif r.beef_score >= 25:
-            beef_style = "peep.metric.warn"
-
+    for r in display_rows:
         cpu_txt = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
         ram_mb = r.rss_bytes / (1024 ** 2)
         ram_style = "peep.metric.ok"
@@ -609,20 +625,33 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
             ram_style = "peep.metric.warn"
         ram_txt = Text(f"{ram_mb:.0f} MB", style=ram_style)
 
-        read_txt = color_bytes(r.read_bps, thresholds_mb_s=(2.0, 20.0))
-        write_txt = color_bytes(r.write_bps, thresholds_mb_s=(2.0, 20.0))
+        # Combine read+write into single IO column
+        total_io = r.read_bps + r.write_bps
+        io_txt = color_bytes(total_io, thresholds_mb_s=(2.0, 20.0))
+
+        # Process column: name [pid] with kind indicator
+        proc_txt = Text()
+        proc_txt.append(r.name, style="bold")
+        proc_txt.append(f" [{r.pid}]", style="peep.muted")
+
+        # Info column: tags, services, or path — whatever is most useful
+        info_txt = Text()
+        if r.tags:
+            tag_txt = ", ".join(r.tags[:2])
+            info_txt.append(tag_txt, style="peep.tag")
+        elif r.services:
+            svc_name = r.services[0].display_name or r.services[0].name
+            info_txt.append(svc_name, style="peep.service")
+        elif r.exe:
+            info_txt.append(short_path(r.exe, max_len=36), style="peep.muted")
 
         table.add_row(
-            Text(f"{r.beef_score:5.1f}", style=beef_style),
+            beef_bar(r.beef_score, max_beef),
             cpu_txt,
             ram_txt,
-            read_txt,
-            write_txt,
-            kind_badge(r.kind),
-            tag_badge(r.tags),
-            Text(f"{r.name} [{r.pid}]", style="bold"),
-            service_badge(r.services),
-            Text(short_path(r.exe), style="peep.muted"),
+            io_txt,
+            proc_txt,
+            info_txt,
         )
     return table
 
@@ -647,22 +676,14 @@ def render_rows(
     else:
         rows.sort(key=lambda r: r.beef_score, reverse=True)
 
-    ttl = title or f"{APP_NAME} — Top {sort_key.upper()} (sampled)"
+    ttl = title or f"{APP_NAME} -- Top {sort_key.upper()} (sampled)"
+    console.print()
     console.print(Rule(ttl, style="peep.accent"))
     table = build_table(rows, title="", limit=limit)
     console.print(table)
-    console.print(
-        Panel(
-            Text(
-                "Tip: ‘Type’ = Service means it can run with no taskbar icon.\n"
-                "This version only *shows* what’s running. ‘trim’ (ending processes) is planned later.",
-                style="peep.muted",
-            ),
-            box=box.SQUARE,
-            title="Notes",
-            title_align="left",
-        )
-    )
+    count = len(rows)
+    console.print(Text(f"  {count} processes  |  Service = can run with no taskbar icon  |  view-only mode", style="peep.muted"))
+    console.print()
 
 
 # --- Baseline snapshot/diff ---------------------------------------------------
@@ -732,16 +753,16 @@ def _render_diff(d: Dict[str, Any], baseline_path: Path, new_limit: int = 50, go
 # --- Interactive CLI (CLI03) --------------------------------------------------
 
 MENU_ITEMS: List[Tuple[str, str, str]] = [
-    ("\U0001f50d", "beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
-    ("\U0001f525", "beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
-    ("\U0001f4be", "beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
-    ("\U0001f9e0", "beefy peep mem", "RAM Hog Finder: high memory background apps"),
-    ("\U0001f9f9", "beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
-    ("\U0001f440", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
-    ("\U0001f4be", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
-    ("\u2194\ufe0f", "beefy baseline diff", "Compare against a baseline snapshot"),
-    ("\u2753", "help", "Show help"),
-    ("\U0001f44b", "quit", "Exit"),
+    ("[>]", "beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
+    ("[>]", "beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
+    ("[>]", "beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
+    ("[>]", "beefy peep mem", "RAM Hog Finder: high memory background apps"),
+    ("[>]", "beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
+    ("[>]", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
+    ("[>]", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
+    ("[>]", "beefy baseline diff", "Compare against a baseline snapshot"),
+    ("[?]", "help", "Show help"),
+    ("[x]", "quit", "Exit"),
 ]
 
 
@@ -761,15 +782,20 @@ def print_header() -> None:
 
 
 def print_menu() -> None:
-    console.print(Rule("Commands", style="peep.accent"))
-    t = Table(box=box.SIMPLE_HEAVY, show_header=True, header_style="peep.brand")
-    t.add_column("", width=2)
-    t.add_column("Try this command", style="peep.heading")
-    t.add_column("What it does")
+    t = Table(box=None, show_header=False, padding=(0, 1), expand=True)
+    t.add_column("", width=3, style="peep.accent", no_wrap=True)
+    t.add_column("Command", style="peep.heading", ratio=1, no_wrap=True)
+    t.add_column("Description", ratio=2)
     for icon, cmd, desc in MENU_ITEMS:
         t.add_row(icon, cmd, desc)
-    console.print(t)
-    console.print(Text("Type a command (or press Enter for the recommended default).", style="peep.muted"))
+    console.print(Panel(
+        t,
+        title="[peep.brand]Commands[/peep.brand]",
+        subtitle="[peep.muted]Type a command or press Enter for the default[/peep.muted]",
+        box=box.ROUNDED,
+        border_style="peep.accent",
+        padding=(1, 2),
+    ))
 
 
 def interactive_loop() -> None:
