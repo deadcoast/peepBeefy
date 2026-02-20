@@ -15,7 +15,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```
 
 Start the interactive CLI (zero typing):
-> [Double-click RUN_peepBeefy.bat](install.bat)
+> [Double-click RUN_peepBeefy.bat](.legacy/specs/v0.0.3/install.bat)
 
 Or from the terminal (run inside the root folder):
 
