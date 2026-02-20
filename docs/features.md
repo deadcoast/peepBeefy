@@ -1,11 +1,10 @@
-# v0.0.3: Shelved Features
+# v0.0.3: Features
 
 ---
 
 ## Table of Contents
 
 - [Revisions and Application Name](#revisions-and-application-name)
-- [Official Shelved](#official-shelved)
 - [Rules](#rules)
   - [THOU_SHALL_NOT (TSN)](#thou_shall_not-tsn)
   - [THOU_SHALL (TSH)](#thou_shall-tsh)
@@ -19,13 +18,17 @@
 
 ## Revisions and Application Name
 
+USER:
+
+```plaintext
+1. this is not an interactive cli. NO ONE is going to load up their terminal and manually type `py .\gameprep.py top io --seconds 1.0 --limit 50 --non-windows --services --json > io.json`. JUST ASKING USERS TO USE THE TERMINAL IS ALOT. 99% OF THE USERBASE OF COMPUTERS NEVER USE THE TERMINAL.
+2. A) This needs to be an interactive cli, OVER DEVELOPED for user friendliness and quality of life. this cli application is designed to provide users ADVANCED UTILITY, in an EASY WAY.  The vast majority of gamers are not developers, gamers dont use the terminal.
+2. B) We cannot ask a brand new userbase who have never used a terminal to type 6 flag commands + 2 numeric input options + the execution command from the shell. This is insanely terrible design.
+3. The decision to integrate Rich/Typer was chosen for a reason, for the interactive cli, and to provide the user with a quality of life that is developed full scope, without losing quality or metrics. For example, if there is a metric on display, seperate the color of the number, so that rookie users can look at the output without being overwhelmed. That is just one example of MANY that will provide new users with a viable experience.
+4. A) The audience for this application is gamers, and the development and design spec should be created for an audience that are technically savvy, but mostly opening a terminal for the first time.
+```
+
 **`peepBeefy`** — The application name is a rearrangement and combination of the core commands of the interactive CLI. The general meaning of `peepBeefy` is *"find and display heavy running processes."*
-
----
-
-## Official Shelved
-
-> **1.** Add a single-screen "watch" mode (live updating table every N seconds) using Rich's live rendering, still keeping it aligned with the purpose (visibility, not fluff).
 
 ---
 
@@ -118,11 +121,32 @@ The CLI will require beautiful output that is easy to read and understand. This 
 `[TODO01]`: Populate the data for the `peepBeefy` command scheme.
 
 | Type                        | Value      | Description                                   |
-|-----------------------------|------------|-----------------------------------------------|
+| ---                         | ---        | ---                                           |
 | **Main CLI call** (DEFAULT) | `beefy`    | Primary entry point                           |
-| **Sub-command**             | `peep`     | General replacement for "check, search, find" |
-| **Options**                 | `[TODO01]` | *To be populated*                             |
-| **Flags**                   | `[TODO01]` | *To be populated*                             |
+| ---                         |            |                                               |
+| **Sub-command**             |            |                                               |
+|                             | `peep`     | General replacement for "check, search, find" |
+| ---                         |            |                                               |
+| **Flags**                   |            |                                               |
+|                             | `--fat`    | Heavy running process (shelved: `trim fat`)   |
+| ---                         |            |                                               |
+| **Options**                 |            |                                               |
+|                             | `[TODO01]` | *To be populated*                             |
+| ---                         |            |                                               |
+
+> TABLE_FORMATTING: [table-formatting](docs/table-formatting.md)
+> - TYPE_COLUMN:
+>   - Must have a line seperator above identifier to allow for multiple value types to be listed
+>   - Must leave the "type" column blank for corresponding values, the type columns are identified and seperated by their lines `---`
+
+---
+
+> SHELVED FEATURES (Planned for after launch)
+> These features are shelved for after launch, as they are not core to the application's functionality ALTHOUGH the applications foundations must include the ability to implement them.
+
+| Type                        | Value      | Description                                   |
+|-----------------------------|------------|-----------------------------------------------|
+| **Sub-command**             | `trim`     | end process throug the interactive-CLI        |
 
 ---
 
@@ -165,5 +189,9 @@ The CLI will require beautiful output that is easy to read and understand. This 
   }
 }
 ```
+
+---
+
+peepBeefy: `TRIM THE FAT BASTARD PROCESSES`
 
 ---
