@@ -1,213 +1,280 @@
----
 FIRE ANIMATION DESIGN — install.py Banner
+==========================================
 
+IMPLEMENTATION STATUS:  COMPLETE
+Source file:            install.py (lines 149-347)
+Design origin:          DOOM PSX fire algorithm, adapted for ASCII character-scale rendering
+
+
+======================================================================
 1. PALETTE GRADIENT (12-step)
+======================================================================
 
-Derived from the DOOM PSX fire convention: a continuous gradient from barely-visible ember through the user's 5 flame colors to a near-white hot tip. The 5 user-specified colors sit at even indices (2, 4, 6, 8,    
-10). The 7 intermediates exist solely so flicker can reach smoothly between adjacent flame zones.
+Derived from the DOOM PSX fire convention: a continuous gradient from
+barely-visible ember through 5 flame colors to a near-white hot tip.
+User-specified flame colors sit at even indices (2, 4, 6, 8, 10).
+The 7 intermediates exist solely so flicker can reach smoothly between
+adjacent flame zones.
 
 Index  Hex       Name               Role
-─────  ───────   ─────────────────  ─────────────────────────────────
-00    #4F0F07   dark ember         below Line 5, barely visible
-01    #6D1504   mid ember          transition
-02    #8B1A00   deep ember red     LINE 5 BASE (ember)
-03    #AB1E00   warm ember         transition
-04    #CC2200   dark red-orange    LINE 4 BASE (lower flame)
-05    #E53400   red-orange         transition
-06    #FF4500   orange-red         LINE 3 BASE (flame body)
-07    #FF6800   bright orange      transition
-08    #FF8C00   dark orange        LINE 2 BASE (upper flame)
-09    #FFB400   amber              transition
-10    #FFD700   bright yellow      LINE 1 BASE (flame tips)
-11    #FFE55C   hot yellow         above Line 1, brightest peak
+-----  -------   -----------------  ---------------------------------
+ 00    #4F0F07   dark ember         below Line 5, barely visible
+ 01    #6D1504   mid ember          transition
+ 02    #8B1A00   deep ember red     LINE 5 BASE (ember)
+ 03    #AB1E00   warm ember         transition
+ 04    #CC2200   dark red-orange    LINE 4 BASE (lower flame)
+ 05    #E53400   red-orange         transition
+ 06    #FF4500   orange-red         LINE 3 BASE (flame body)
+ 07    #FF6800   bright orange      transition
+ 08    #FF8C00   dark orange        LINE 2 BASE (upper flame)
+ 09    #FFB400   amber              transition
+ 10    #FFD700   bright yellow      LINE 1 BASE (flame tips)
+ 11    #FFE55C   hot yellow         above Line 1, brightest peak
 
-Why 12 and not 8 or 37: The DOOM palette uses 37 colors but targets pixel-scale resolution. We're coloring individual ASCII characters — 12 steps is the right density for ±2-step flicker across 5 flame zones. More 
-would be wasted (human eye can't distinguish adjacent hex values at character scale). Fewer would produce visible banding.
+Why 12 and not 8 or 37: The DOOM palette uses 37 colors but targets
+pixel-scale resolution. We color individual ASCII characters — 12 steps
+is the right density for +/-2-step flicker across 5 flame zones. More
+would be wasted (human eye can't distinguish adjacent hex values at
+character scale). Fewer would produce visible banding.
 
+install.py constant:  FIRE_PALETTE  (tuple of 12 hex strings)
+                      FIRE_STYLES   (tuple of 12 pre-built Style objects)
+
+
+======================================================================
 2. LINE-TO-PALETTE MAPPING
+======================================================================
 
-Each flame line (1-5) has a base palette index and a flicker range — the indices it can reach via random per-character variation.
+Each flame line (1-5) has a base palette index and a flicker range —
+the indices it can reach via random per-character variation.
 
 Line   Zone      Base Index   Flicker Range   Clamp
-─────  ────────  ──────────   ─────────────   ──────
-01    TIPS         10          [8, 11]        max 11
-02    UPPER         8          [6, 10]
-03    BODY          6          [4, 8]
-04    LOWER         4          [2, 6]
-05    EMBER         2          [0, 4]         min 0
+-----  --------  ----------   -------------   ------
+ 01    TIPS         10          [8, 11]        max 11
+ 02    UPPER         8          [6, 10]
+ 03    BODY          6          [4, 8]
+ 04    LOWER         4          [2, 6]
+ 05    EMBER         2          [0, 4]         min 0
 
-Key property: adjacent lines overlap by 2 indices. Line 1 at -2 = index 8, which is Line 2's base. Line 2 at +2 = index 10, which is Line 1's base. This overlap creates the seamless heat diffusion that defines the 
+Key property: adjacent lines overlap by 2 indices.
+Line 1 at -2 = index 8, which is Line 2's base.
+Line 2 at +2 = index 10, which is Line 1's base.
+This overlap creates the seamless heat diffusion that defines the
 DOOM fire look — no hard color boundaries between flame zones.
 
-Text lines (6-8) are fixed, no flicker:
+Text lines (6-8) have a base color/style plus an EMBER CRACK effect:
 
-Line   Zone      Color     Style
-─────  ────────  ───────   ──────────
-06    TEXT-HOT  #FFFFFF   bold
-07    TEXT-MID  #CCCCCC   normal
-08    TEXT-DIM  #999999   dim
+Line   Zone      Base Color  Style   Crack%  Crack Palette
+-----  --------  ----------  ------  ------  ----------------------------
+ 06    TEXT-HOT  #FFFFFF     bold      20%   #FFD700 (yellow), #FFE55C (hot-yellow)
+ 07    TEXT-MID  #CCCCCC     normal    12%   #FF8C00 (orange), #FFB400 (amber)
+ 08    TEXT-DIM  #999999     dim        6%   #8B1A00 (ember),  #CC2200 (dark-red)
 
+Ember cracks: Each frame, every printable character in the text lines rolls
+against the crack probability. On success, the character is rendered in one
+of the crack palette colors (randomly chosen) instead of its base style.
+Space characters are never cracked (same rule as flame flicker).
+
+The effect simulates embers glowing through cracks in cooling stone.
+Crack positions change every frame — the glow appears to shift and breathe.
+Higher lines (closer to flames) have higher crack probability and hotter
+(brighter) crack colors, maintaining the top-to-bottom heat gradient.
+
+install.py constant:  LINE_CONFIG        (tuple of 5 tuples: base_idx, prob, min, max)
+                      TEXT_STYLES        (tuple of 3 pre-built Style objects)
+                      TEXT_CRACK_CONFIG  (tuple of 3 tuples: crack_prob, crack_palette_indices)
+
+
+======================================================================
 3. FLICKER PROBABILITY DISTRIBUTION
+======================================================================
 
 Two independent rolls per character:
 
-Roll 1: Does this character flicker at all?
+ROLL 1: Does this character flicker at all?
 
 Line-specific intensity — how unstable is this flame zone:
 
-Line   Zone      Flicker Probability   Rationale
-─────  ────────  ───────────────────   ─────────────────────────
-01    TIPS         100%               Tips are wild, always moving
-02    UPPER         80%               Active combustion zone
-03    BODY          65%               Dense core, some stability
-04    LOWER         45%               Heavy base, slower movement
-05    EMBER         30%               Embers glow steadily, occasional flare
+Line   Zone      Flicker Prob   Rationale
+-----  --------  ------------   -------------------------
+ 01    TIPS         100%        Tips are wild, always moving
+ 02    UPPER         80%        Active combustion zone
+ 03    BODY          65%        Dense core, some stability
+ 04    LOWER         45%        Heavy base, slower movement
+ 05    EMBER         30%        Embers glow steadily, occasional flare
 
-If the roll FAILS (character doesn't flicker), it stays at its line's base palette index.
+If the roll FAILS, the character stays at its line's base palette index.
 
-Roll 2: If flickering, how far from base?
+ROLL 2: If flickering, how far from base?
 
-Weighted distribution with slight warm bias (flames naturally push energy upward):
+Weighted distribution with slight warm bias (flames push energy upward):
 
 Offset   Weight   Probability   Visual effect
-──────   ──────   ───────────   ──────────────────────────
-0       40       0.40         Base color (most common)
-+1       18       0.18         One step warmer (brighter)
--1       17       0.17         One step cooler (darker)
-+2       13       0.13         Two steps warmer (bright flash)
--2       12       0.12         Two steps cooler (dark dip)
+------   ------   -----------   --------------------------
+  0       40       0.40         Base color (most common)
+ +1       18       0.18         One step warmer (brighter)
+ -1       17       0.17         One step cooler (darker)
+ +2       13       0.13         Two steps warmer (bright flash)
+ -2       12       0.12         Two steps cooler (dark dip)
 
-Warm bias: 31% warmer vs 29% cooler. Subtle but perceptible — the flame "wants" to be bright.
+Warm bias: 31% warmer vs 29% cooler.
 
-Rule: Space characters are NEVER colored. Fire doesn't fill empty space. Only printable characters receive flicker. This preserves the shape of the flames — the sway motion comes from the whitespace, and coloring  
-whitespace would destroy that.
+Rule: Space characters are NEVER colored. Fire doesn't fill empty
+space. Only printable characters receive flicker. This preserves the
+shape of the flames — the sway motion comes from the whitespace, and
+coloring whitespace would destroy that.
 
+install.py constant:  FLICKER_OFFSETS  (tuple of 100 pre-weighted ints)
+                      Distribution baked in: (0,)*40 + (1,)*18 + (-1,)*17 + (2,)*13 + (-2,)*12
+                      random.choice() on this tuple = O(1), no weight math at runtime.
+
+
+======================================================================
 4. SWAY FRAME DATA
+======================================================================
 
-9 frames total, stored as lists of 8 raw ASCII strings. The forward frames (01-05) are extracted directly from the spec file. The B-frames (02-b through 05-b) are constructed by mirroring: for each line, the offset
-from default is sign-flipped.
-
-Frame sequence:  01 → 02 → 03 → 04 → 05 → 02-b → 03-b → 04-b → 05-b → repeat
-Frame count:     9
-FPS:             8 (125ms per frame — fast enough for smooth sway, slow enough for Rich Live)
-
+9-frame cycle: 5 forward + 4 reverse (B-slides).
 Lines 6-8 are identical in every frame (anchored text body = fuel source).
 
-5. INTEGRATION PLAN FOR install.py
+Frame sequence:  01 -> 02 -> 03 -> 04 -> 05 -> 02-b -> 03-b -> 04-b -> 05-b -> repeat
+Frame count:     9
+FPS:             8 (125ms per frame)
 
-New imports (line ~41):
-import random
-from rich.live import Live
+ABSOLUTE OFFSETS FROM DEFAULT (as implemented in _SWAY_OFFSETS):
 
-New constants (after existing design tokens, ~line 68):
-FIRE_PALETTE   — tuple of 12 hex strings (index 0-11)
-FIRE_STYLES    — tuple of 12 pre-built Style(color=hex) objects
-TEXT_STYLES     — tuple of 3 pre-built Style objects for lines 6-8
-LINE_CONFIG    — tuple of 5 tuples: (base_index, flicker_prob, min_idx, max_idx)
-FLICKER_OFFSETS — tuple: (0, 0, 0, 0, +1, +1, +1, -1, -1, -1, +2, +2, -2, -2)
-                pre-weighted for random.choice (no runtime probability math)
-SWAY_FRAMES    — tuple of 9 tuples, each containing 8 strings (the raw art lines)
+These are the ground truth used by the code. Each value is the number
+of leading spaces added to (+) or removed from (-) the default line.
 
-Pre-building FIRE_STYLES avoids allocating Style objects every frame. FLICKER_OFFSETS uses a pre-weighted tuple so random.choice() naturally produces the right distribution (faster than random.choices() with       
-weights for single picks).
+Frame              L1    L2    L3    L4    L5
+-----------------  ----  ----  ----  ----  ----
+01  (default)        0     0     0     0     0
+02  (lean left)     -5    -3    -1    -1    +1
+03  (deeper left)   -4    -2     0     0     0
+04  (pull right)    -1    -1    +1    +2    +1
+05  (return)         0     0     0     0     0
+02-b (lean right)   +5    +3    +1    +1    -1
+03-b (deeper right) +4    +2     0     0     0
+04-b (pull left)    +1    +1    -1    -2    -1
+05-b (return)        0     0     0     0     0
 
-New function: colorize_line(line: str, line_idx: int, rng: random.Random) -> Text
-- For flame lines (0-4): iterate each character
-- Space → append unstyled
-- Printable → roll flicker prob; if flickering, pick offset via rng.choice(FLICKER_OFFSETS), clamp to range, apply FIRE_STYLES[clamped_index]; if not flickering, apply FIRE_STYLES[base_index]
-- For text lines (5-7): apply TEXT_STYLES[line_idx - 5] to entire line
-- Returns a Text object
+RESULTING LEADING SPACES (default padding + offset):
 
-New function: build_fire_frame(frame_idx: int, rng: random.Random) -> Text
-- Gets the 8 lines from SWAY_FRAMES[frame_idx]
-- Calls colorize_line() for each
-- Joins with newlines into a single Text object
-- Returns the composed frame
+Default padding:   26    10     1     1     0
 
-New function: animate_banner(duration: float = 3.0, fps: int = 8)
-- Creates a random.Random() instance (isolated RNG, no global state)
-- Builds the Panel shell (DOUBLE border, title, subtitle — same as current show_banner())
-- Uses Live(panel, console=console, refresh_per_second=fps) context
-- Frame loop:
-- Cycle through SWAY_FRAMES indices: 0→1→2→3→4→5→6→7→8→0→...
-- Each tick: call build_fire_frame() with fresh flicker, rebuild panel content, live.update()
-- After duration seconds: exit loop
-- After Live exits: print the final frozen frame (last rendered panel stays on screen)
-- Then print tagline, divider, installer identity (same as current show_banner() post-panel content)
+Frame              L1    L2    L3    L4    L5
+-----------------  ----  ----  ----  ----  ----
+01  (default)      26    10     1     1     0
+02  (lean left)    21     7     0     0     1
+03  (deeper left)  22     8     1     1     0
+04  (pull right)   25     9     2     3     1
+05  (return)       26    10     1     1     0
+02-b (lean right)  31    13     2     2     0
+03-b (deeper right)30    12     1     1     0
+04-b (pull left)   27    11     0     0     0
+05-b (return)      26    10     1     1     0
 
-Modified function: show_banner()
-- Replace static Text(BANNER_ART, style=...) + Panel(...) with call to animate_banner()
-- Everything below the banner (tagline, divider, installer identity) moves into animate_banner() or stays in show_banner() after the call
-- The animation runs for 3 seconds, then the installer steps begin below
+Mirror symmetry: Frame N and Frame (N+4) have sign-flipped offsets.
+02 [-5,-3,-1,-1,+1] mirrors 02-b [+5,+3,+1,+1,-1].
+Frames 01, 05, and 05-b are all identical (default).
 
-Unchanged: run_step(), all 5 installation actions, show_success(), show_uv_guide(), main() — none of these need modification.
+Clamp: offsets that would produce negative leading spaces are clamped
+to 0. This affects 04-b L3/L4/L5 minimally (1-2 char asymmetry).
 
+install.py constants:  _FLAME_DEFAULTS  (5 raw strings, default flame art)
+                       _TEXT_LINES      (3 raw strings, anchored text body)
+                       _DEFAULT_PAD     (26, 10, 1, 1, 0)
+                       _SWAY_OFFSETS    (9 tuples of 5 absolute offsets)
+                       SWAY_FRAMES      (9 pre-computed frames, 8 lines each)
+
+
+======================================================================
+5. IMPLEMENTATION IN install.py
+======================================================================
+
+Functions:
+
+  _build_sway_frames()
+      Pre-computes all 9 sway frames at module load.
+      Each frame = 5 flame lines (default art + offset padding) + 3 anchored text lines.
+
+  _build_fire_frame(frame_idx, rng) -> Text
+      Builds one 8-line Rich Text object with per-character fire coloring.
+      Flame lines (0-4): iterates each character, rolls flicker, applies FIRE_STYLES.
+      Text lines (5-7): applies fixed TEXT_STYLES to full line.
+      Spaces are always appended unstyled.
+
+  _make_banner_panel(art) -> Panel
+      Wraps a fire frame in the DOUBLE-border banner Panel.
+      Title: "peepBeefy", subtitle: version, border: cyan.
+
+  _animate_fire(duration=3.0, fps=8)
+      Runs the fire sway animation inside a Rich Live context.
+      Creates isolated random.Random() instance (no global state).
+      Cycles through SWAY_FRAMES indices at 8 FPS.
+      Each tick: fresh flicker roll via _build_fire_frame(), live.update().
+      After duration: Live exits, frozen frame persists on screen.
+
+  show_banner()
+      Clears screen, calls _animate_fire(), then prints:
+      tagline, divider, "INSTALLER  First-time setup", description, divider.
+
+
+======================================================================
 6. PERFORMANCE NOTES
+======================================================================
 
-- Pre-built Style objects: 12 fire + 3 text = 15 objects, allocated once at import
-- Pre-weighted flicker tuple: random.choice() on a tuple is O(1), no weight computation per character
-- Text.append() per character: ~60 chars/line * 5 flame lines = ~300 appends per frame at 8 FPS = 2400 appends/sec — trivial for Rich
-- Live context handles terminal diff updates efficiently — only redraws changed characters
+- Pre-built Style objects: 12 fire + 3 text = 15, allocated once at import
+- Pre-weighted flicker tuple: random.choice() on 100-element tuple = O(1)
+- Text.append() per character: ~300 appends/frame at 8 FPS = 2400/sec (trivial for Rich)
+- Live context handles terminal diff updates (only redraws changed characters)
 - Total animation: 3 seconds * 8 FPS = 24 frames rendered
 
----
+ANSI FALLBACK (strict 16-color terminals):
 
-# ══════════════════════════════════════════════════════════════
-#  FIRE ANIMATION — peepBeefy Banner
-#
-#  8-frame sway cycle. Forward lean (01→05), reverse lean (B-slides).
-#  Lines 1-5 sway with decreasing amplitude + counter-sway on Line5.
-#  Lines 6-8 are anchored (text body = fuel source, doesn't move).
-#
-# ══════════════════════════════════════════════════════════════
-#  FIRE PALETTE  (low-bit — classic demoscene fire gradient)
-#
-#  The fire rises from the text. Tips are sparse and bright.
-#  Core is dense and hot. Text glows white-hot at the source.
-#
-#   Line1  TIPS      #FFD700  bright yellow      sparse, flickering tips
-#   Line2  UPPER     #FF8C00  dark orange        gathering, visible heat
-#   Line3  BODY      #FF4500  orange-red         dense flame core
-#   Line4  LOWER     #CC2200  dark red-orange    heavy base of flame
-#   Line5  EMBER     #8B1A00  deep ember red     where fire meets text
-#   Line6  TEXT-HOT  #FFFFFF  bold white         white-hot letterforms
-#   Line7  TEXT-MID  #CCCCCC  white              cooling glow
-#   Line8  TEXT-DIM  #999999  dim gray           base, furthest from flame
-#
-#  ANSI FALLBACK (strict 16-color terminals):
-#   Line1  bright_yellow   \e[93m
-#   Line2  yellow          \e[33m
-#   Line3  bright_red      \e[91m    (reads orange on most terminals)
-#   Line4  red             \e[31m
-#   Line5  red dim         \e[2;31m
-#   Line6  bold white      \e[1;37m
-#   Line7  white           \e[37m
-#   Line8  dim             \e[2m
-#
-# ══════════════════════════════════════════════════════════════
-#  ANIMATION CYCLE
-#
-#  FORWARD:   Slide_01 → 02 → 03 → 04 → 05 (return to default)
-#  REVERSE:   Slide_01 → 02-b → 03-b → 04-b → 05-b (return to default)
-#
-#  Full loop: 01 → 02 → 03 → 04 → 05 → 02-b → 03-b → 04-b → 05-b → repeat
-#
-#  Each offset is DELTA from previous frame.
-#  Only Lines 1-5 sway. Lines 6-8 are anchored.
-# ══════════════════════════════════════════════════════════════
+  Line1  bright_yellow   \e[93m
+  Line2  yellow          \e[33m
+  Line3  bright_red      \e[91m    (reads orange on most terminals)
+  Line4  red             \e[31m
+  Line5  red dim         \e[2;31m
+  Line6  bold white      \e[1;37m
+  Line7  white           \e[37m
+  Line8  dim             \e[2m
+
+Note: The current implementation uses truecolor hex values via Rich.
+The ANSI fallback codes are documented for potential future use in
+terminals that don't support 24-bit color.
 
 
-# --------------------------------------------------
-# Slide_01 (DEFAULT SPACING)
-# --------------------------------------------------
-# Line1: 0      #FFD700  bright yellow
-# Line2: 0      #FF8C00  dark orange
-# Line3: 0      #FF4500  orange-red
-# Line4: 0      #CC2200  dark red-orange
-# Line5: 0      #8B1A00  deep ember red
-# Line6: fixed  #FFFFFF  bold white
-# Line7: fixed  #CCCCCC  white
-# Line8: fixed  #999999  dim gray
+======================================================================
+VISUAL REFERENCE — ASCII Art Frames
+======================================================================
+
+The hand-crafted ASCII art below is the source of truth for the sway
+animation. The absolute offsets in Section 4 were MEASURED from this
+art (leading space count per line, compared to the default frame).
+
+The delta values in the slide headers below are APPROXIMATE annotations
+from the original design process. Where they conflict with the actual
+art, the art wins. The code uses the measured absolute offsets, not
+cumulative deltas.
+
+Lines 6-8 are anchored in all frames:
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
+
+
+----------------------------------------------------------------------
+Slide_01 (DEFAULT SPACING)
+----------------------------------------------------------------------
+Line1: 0      #FFD700  bright yellow
+Line2: 0      #FF8C00  dark orange
+Line3: 0      #FF4500  orange-red
+Line4: 0      #CC2200  dark red-orange
+Line5: 0      #8B1A00  deep ember red
+Line6: fixed  #FFFFFF  bold white
+Line7: fixed  #CCCCCC  white
+Line8: fixed  #999999  dim gray
 
                           (             (
           (    (        ( )\    (    (  )\ )  (
@@ -218,144 +285,90 @@ Unchanged: run_step(), all 5 installation actions, show_success(), show_uv_guide
 | .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
 |_|              |_|                          |__/
 
-# --------------------------------------------------
+----------------------------------------------------------------------
+Slide_02  [absolute offsets: -5, -3, -1, -1, +1]
+----------------------------------------------------------------------
 
-# --------------------------------------------------
-# Slide_02
-# --------------------------------------------------
-# Line1: -2     #FFD700  bright yellow
-# Line2: -2     #FF8C00  dark orange
-# Line3: -1     #FF4500  orange-red
-# Line4: -1     #CC2200  dark red-orange
-# Line5: +1     #8B1A00  deep ember red
-# Line6: fixed  #FFFFFF  bold white
-# Line7: fixed  #CCCCCC  white
-# Line8: fixed  #999999  dim gray
-
-| 1 |                     (             (
-| 2 |       (    (        ( )\    (    (  )\ )  (
-| 3 |`  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
-| 4 |/(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
-| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
-| 8 ||_|              |_|                          |__/
-
-# --------------------------------------------------
-# Slide_03
-# --------------------------------------------------
-# Line1: -1     #FFD700  bright yellow
-# Line2: +1     #FF8C00  dark orange
-# Line3: +1     #FF4500  orange-red
-# Line4: +1     #CC2200  dark red-orange
-# Line5: -1     #8B1A00  deep ember red
-# Line6: fixed  #FFFFFF  bold white
-# Line7: fixed  #CCCCCC  white
-# Line8: fixed  #999999  dim gray
-
-| 1 |                      (             (
-| 2 |        (    (         ( )\    (    (  )\ )  (
-| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
-| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
-| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
-| 8 ||_|              |_|                          |__/
-
-# --------------------------------------------------
-# Slide_04
-# --------------------------------------------------
-# Line1: +2     #FFD700  bright yellow
-# Line2: +1     #FF8C00  dark orange
-# Line3: +1     #FF4500  orange-red
-# Line4: +2     #CC2200  dark red-orange
-# Line5: +1     #8B1A00  deep ember red
-# Line6: fixed  #FFFFFF  bold white
-# Line7: fixed  #CCCCCC  white
-# Line8: fixed  #999999  dim gray
-
-| 1 |                         (             (
-| 2 |         (    (         ( )\    (    (  )\ )  (
-| 3 |  `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
-| 4 |   /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
-| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
-| 8 ||_|
-
-# --------------------------------------------------
-# Slide_05: RETURN TO DEFAULT_SPACING
-# --------------------------------------------------
-# Line1: +1     #FFD700  bright yellow
-# Line2: -1     #FF8C00  dark orange
-# Line3: -1     #FF4500  orange-red
-# Line4: -2     #CC2200  dark red-orange
-# Line5: -1     #8B1A00  deep ember red
-# Line6: fixed  #FFFFFF  bold white
-# Line7: fixed  #CCCCCC  white
-# Line8: fixed  #999999  dim gray
-
-| 1 |                          (             (
-| 2 |          (    (        ( )\    (    (  )\ )  (
-| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
-| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
-| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
-| 8 ||_|              |_|                          |__/
+                     (             (
+       (    (        ( )\    (    (  )\ )  (
+`  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+/(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+ ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
 
 
-# ══════════════════════════════════════════════════════════════
-#  REVERSE SWAY (B-slides)
-#
-#  Mirror of the forward sway. All deltas are sign-flipped.
-#  Played after forward cycle to create a living, breathing flame.
-# ══════════════════════════════════════════════════════════════
+----------------------------------------------------------------------
+Slide_03  [absolute offsets: -4, -2, 0, 0, 0]
+----------------------------------------------------------------------
 
-# --------------------------------------------------
-# Slide_02-b  (reverse of Slide_02 deltas)
-# --------------------------------------------------
-# Line1: +2     #FFD700
-# Line2: +2     #FF8C00
-# Line3: +1     #FF4500
-# Line4: +1     #CC2200
-# Line5: -1     #8B1A00
-# Line6: fixed  #FFFFFF
-# Line7: fixed  #CCCCCC
-# Line8: fixed  #999999
+                      (             (
+        (    (        ( )\    (    (  )\ )  (
+ `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+ /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
 
-# --------------------------------------------------
-# Slide_03-b  (reverse of Slide_03 deltas)
-# --------------------------------------------------
-# Line1: +1     #FFD700
-# Line2: -1     #FF8C00
-# Line3: -1     #FF4500
-# Line4: -1     #CC2200
-# Line5: +1     #8B1A00
-# Line6: fixed  #FFFFFF
-# Line7: fixed  #CCCCCC
-# Line8: fixed  #999999
 
-# --------------------------------------------------
-# Slide_04-b  (reverse of Slide_04 deltas)
-# --------------------------------------------------
-# Line1: -2     #FFD700
-# Line2: -1     #FF8C00
-# Line3: -1     #FF4500
-# Line4: -2     #CC2200
-# Line5: -1     #8B1A00
-# Line6: fixed  #FFFFFF
-# Line7: fixed  #CCCCCC
-# Line8: fixed  #999999
+----------------------------------------------------------------------
+Slide_04  [absolute offsets: -1, -1, +1, +2, +1]
+----------------------------------------------------------------------
 
-# --------------------------------------------------
-# Slide_05-b: RETURN TO DEFAULT_SPACING
-# --------------------------------------------------
-# Line1: -1     #FFD700
-# Line2: +1     #FF8C00
-# Line3: +1     #FF4500
-# Line4: +2     #CC2200
-# Line5: +1     #8B1A00
-# Line6: fixed  #FFFFFF
-# Line7: fixed  #CCCCCC
-# Line8: fixed  #999999
+                         (             (
+         (    (        ( )\    (    (  )\ )  (
+  `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+   /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+ ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
+
+
+----------------------------------------------------------------------
+Slide_05: RETURN TO DEFAULT SPACING  [absolute offsets: 0, 0, 0, 0, 0]
+----------------------------------------------------------------------
+
+                          (             (
+          (    (        ( )\    (    (  )\ )  (
+ `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+ /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
+
+
+======================================================================
+REVERSE SWAY (B-slides)
+
+Mirror of the forward sway. All absolute offsets are sign-flipped.
+Played after forward cycle to create a living, breathing flame.
+
+B-slide art is NOT hand-crafted — it is computed at module load by
+applying mirrored offsets to the default flame lines. The code handles
+this in _build_sway_frames().
+======================================================================
+
+----------------------------------------------------------------------
+Slide_02-b  [absolute offsets: +5, +3, +1, +1, -1]
+----------------------------------------------------------------------
+Mirror of Slide_02. Flame lines shift RIGHT instead of LEFT.
+Line 5 clamps to 0 leading spaces (cannot go negative).
+
+----------------------------------------------------------------------
+Slide_03-b  [absolute offsets: +4, +2, 0, 0, 0]
+----------------------------------------------------------------------
+Mirror of Slide_03.
+
+----------------------------------------------------------------------
+Slide_04-b  [absolute offsets: +1, +1, -1, -2, -1]
+----------------------------------------------------------------------
+Mirror of Slide_04. Lines 3-5 clamp to 0 where offset would go negative.
+
+----------------------------------------------------------------------
+Slide_05-b: RETURN TO DEFAULT SPACING  [absolute offsets: 0, 0, 0, 0, 0]
+----------------------------------------------------------------------
+Identical to Slide_01 and Slide_05.

@@ -176,6 +176,16 @@ TEXT_STYLES = (
     Style(color="#999999", dim=True),    # Line 8: dim base
 )
 
+# Ember crack effect: per-character glow on text lines.
+# Simulates embers showing through cracks in cooling text surface.
+# Each text line: (crack_probability, tuple_of_palette_indices_to_pick_from)
+# Higher lines = hotter cracks (brighter palette), higher probability.
+TEXT_CRACK_CONFIG = (
+    (0.20, (10, 11)),    # Line 6: 20% chance -> yellow / hot-yellow
+    (0.12, (8, 9)),      # Line 7: 12% chance -> orange / amber
+    (0.06, (2, 4)),      # Line 8:  6% chance -> ember / dark-red
+)
+
 # Per-line: (base_palette_index, flicker_probability, min_index, max_index)
 LINE_CONFIG = (
     (10, 1.00, 8, 11),   # Line 1 TIPS:  always flickering
@@ -257,8 +267,18 @@ def _build_fire_frame(frame_idx: int, rng: random.Random) -> Text:
             result.append("\n")
 
         if i >= 5:
-            # Text body: fixed glow style, no flicker
-            result.append(line, style=TEXT_STYLES[i - 5])
+            # Text body: per-character ember crack effect
+            ti = i - 5
+            base_style = TEXT_STYLES[ti]
+            crack_prob, crack_indices = TEXT_CRACK_CONFIG[ti]
+            for ch in line:
+                if ch == " ":
+                    result.append(ch)
+                else:
+                    if rng.random() < crack_prob:
+                        result.append(ch, style=FIRE_STYLES[rng.choice(crack_indices)])
+                    else:
+                        result.append(ch, style=base_style)
             continue
 
         # Flame line: per-character coloring
