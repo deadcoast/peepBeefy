@@ -15,7 +15,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```
 
 Start the interactive CLI (zero typing):
-> [Double-click RUN_peepBeefy.bat](.legacy/specs/v0.0.3/install.bat)
+> [Double-click RUN_peepBeefy.bat](.logs/legacy/specs/v0.0.3/install.bat)
 
 Or from the terminal (run inside the root folder):
 
@@ -59,7 +59,7 @@ version_authority: true
 > [!NOTE]
 > EXCEPTION: Up to and including v0.0.4, the source code WAS part of the documentation, as it was still contained. From v0.0.5 specifications the source code will be versioned separately, and github will be the primary version control system for the SOURCE CODE.
 
-1. A legacy-spec-directory is created in the [specs-archive](\.legacy\specs\) with its working version as the directory title.
+1. A legacy-spec-directory is created in the [specs-archive](.logs/legacy/specs) with its working version as the directory title.
 2. The new version will now take effect in the continued development of the ongoing project files.
 
 ---

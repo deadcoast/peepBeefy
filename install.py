@@ -147,38 +147,139 @@ def run_step(label: str, action, note: str = None) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════════
-#  BANNER
+#  FIRE ANIMATION — Banner
 #
-#  The ASCII art is hand-crafted. Not pyfiglet. Not generated.
-#  pyfiglet would be a downgrade — its fonts don't match this
-#  specific letterform. PURPOSEFUL decision: keep the original.
+#  DOOM PSX fire convention: 12-step gradient, per-character
+#  flicker, 9-frame sway cycle. Lines 1-5 are flame (sway +
+#  flicker). Lines 6-8 are text body (anchored, glow only).
 #
-#  Rendered inside a DOUBLE-border panel with tight padding.
-#  The double border (══) is THE retro CRT signifier.
-#  It says "this is a terminal application that knows what it is."
+#  See docs/fire-animation-string.txt for full design spec.
 # ═══════════════════════════════════════════════════════════════
 
-BANNER_ART = r"""
-                                                    
-                          (             (           
-          (    (        ( )\    (    (  )\ )  (     
- `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
- /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
-|_|              |_|                          |__/ 
-"""
+# --- 12-step fire palette (DOOM-derived) ---
+#
+#  Index 0 = barely visible ember, Index 11 = near-white peak.
+#  User-specified flame colors sit at even indices (2,4,6,8,10).
+#  Odd indices are interpolated transitions for smooth flicker.
+
+FIRE_PALETTE = (
+    "#4F0F07", "#6D1504", "#8B1A00", "#AB1E00",   # embers
+    "#CC2200", "#E53400", "#FF4500", "#FF6800",   # flame core
+    "#FF8C00", "#FFB400", "#FFD700", "#FFE55C",   # tips
+)
+
+FIRE_STYLES = tuple(Style(color=c) for c in FIRE_PALETTE)
+
+TEXT_STYLES = (
+    Style(color="#FFFFFF", bold=True),   # Line 6: white-hot text
+    Style(color="#CCCCCC"),              # Line 7: cooling glow
+    Style(color="#999999", dim=True),    # Line 8: dim base
+)
+
+# Per-line: (base_palette_index, flicker_probability, min_index, max_index)
+LINE_CONFIG = (
+    (10, 1.00, 8, 11),   # Line 1 TIPS:  always flickering
+    ( 8, 0.80, 6, 10),   # Line 2 UPPER: active combustion
+    ( 6, 0.65, 4,  8),   # Line 3 BODY:  dense core
+    ( 4, 0.45, 2,  6),   # Line 4 LOWER: heavy base
+    ( 2, 0.30, 0,  4),   # Line 5 EMBER: steady glow
+)
+
+# Pre-weighted flicker offsets: 0(40%) +1(18%) -1(17%) +2(13%) -2(12%)
+# Slight warm bias (31% warm vs 29% cool) — flames push energy upward.
+FLICKER_OFFSETS = (0,)*40 + (1,)*18 + (-1,)*17 + (2,)*13 + (-2,)*12
 
 
-def show_banner():
-    """Render the peepBeefy banner and installer preamble."""
-    console.clear()
-    gap()
+# ─── Sway Frame Data ────────────────────────────────────────
+#
+#  9-frame cycle: 5 forward + 4 reverse (B-slides).
+#  Forward frames extracted from hand-crafted ASCII art.
+#  B-frames computed as mirror (sign-flipped offsets from default).
+#  Lines 6-8 are anchored — identical in every frame.
 
-    # ── Main banner panel ──
-    art = Text(BANNER_ART, style=f"bold {CL}")
-    banner = Panel(
+_FLAME_DEFAULTS = (
+    r"                          (             (",
+    r"          (    (        ( )\    (    (  )\ )  (",
+    r" `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )",
+    r" /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(",
+    r"((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))",
+)
+
+_TEXT_LINES = (
+    r"| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |",
+    r"| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |",
+    r"|_|              |_|                          |__/",
+)
+
+_DEFAULT_PAD = (26, 10, 1, 1, 0)
+_FLAME_STRIPPED = tuple(line.lstrip(" ") for line in _FLAME_DEFAULTS)
+
+# Absolute offsets from default for each frame's 5 flame lines.
+# Forward frames measured from hand-crafted art; B-frames are mirrors.
+_SWAY_OFFSETS = (
+    ( 0,  0,  0,  0,  0),   # 01:   default
+    (-5, -3, -1, -1, +1),   # 02:   lean left
+    (-4, -2,  0,  0,  0),   # 03:   deeper left
+    (-1, -1, +1, +2, +1),   # 04:   pulling right
+    ( 0,  0,  0,  0,  0),   # 05:   return to default
+    (+5, +3, +1, +1, -1),   # 02-b: lean right
+    (+4, +2,  0,  0,  0),   # 03-b: deeper right
+    (+1, +1, -1, -2, -1),   # 04-b: pulling left
+    ( 0,  0,  0,  0,  0),   # 05-b: return to default
+)
+
+
+def _build_sway_frames():
+    """Pre-compute all 9 sway frames at module load."""
+    frames = []
+    for offsets in _SWAY_OFFSETS:
+        lines = []
+        for i in range(5):
+            pad = max(0, _DEFAULT_PAD[i] + offsets[i])
+            lines.append(" " * pad + _FLAME_STRIPPED[i])
+        lines.extend(_TEXT_LINES)
+        frames.append(tuple(lines))
+    return tuple(frames)
+
+
+SWAY_FRAMES = _build_sway_frames()
+
+
+# ─── Frame Building ─────────────────────────────────────────
+
+def _build_fire_frame(frame_idx: int, rng: random.Random) -> Text:
+    """Build one 8-line fire frame with per-character flicker coloring."""
+    lines = SWAY_FRAMES[frame_idx]
+    result = Text()
+
+    for i, line in enumerate(lines):
+        if i > 0:
+            result.append("\n")
+
+        if i >= 5:
+            # Text body: fixed glow style, no flicker
+            result.append(line, style=TEXT_STYLES[i - 5])
+            continue
+
+        # Flame line: per-character coloring
+        base_idx, flicker_prob, lo, hi = LINE_CONFIG[i]
+        for ch in line:
+            if ch == " ":
+                result.append(ch)
+            else:
+                if rng.random() < flicker_prob:
+                    offset = rng.choice(FLICKER_OFFSETS)
+                    idx = max(lo, min(hi, base_idx + offset))
+                else:
+                    idx = base_idx
+                result.append(ch, style=FIRE_STYLES[idx])
+
+    return result
+
+
+def _make_banner_panel(art: Text) -> Panel:
+    """Wrap fire frame in the standard banner Panel."""
+    return Panel(
         Align.center(art),
         title=f"[bold {CL}]═══ peepBeefy ═══[/]",
         subtitle=f"[{D}]v0.0.4[/]",
@@ -187,7 +288,34 @@ def show_banner():
         padding=(0, 2),
         width=PW,
     )
-    console.print(Align.center(banner))
+
+
+def _animate_fire(duration: float = 3.0, fps: int = 8):
+    """Run the fire sway animation inside a Live context."""
+    rng = random.Random()
+    frame_idx = 0
+    n = len(SWAY_FRAMES)
+    interval = 1.0 / fps
+
+    art = _build_fire_frame(0, rng)
+    panel = Align.center(_make_banner_panel(art))
+
+    start = time.monotonic()
+    with Live(panel, console=console, refresh_per_second=fps, transient=False) as live:
+        while time.monotonic() - start < duration:
+            time.sleep(interval)
+            frame_idx = (frame_idx + 1) % n
+            art = _build_fire_frame(frame_idx, rng)
+            live.update(Align.center(_make_banner_panel(art)))
+
+
+def show_banner():
+    """Render the animated peepBeefy banner and installer preamble."""
+    console.clear()
+    gap()
+
+    # ── Animated fire banner ──
+    _animate_fire()
     gap()
 
     # ── Tagline ──
