@@ -871,6 +871,7 @@ def print_header() -> None:
     
     Loads configuration, initializes the banner database, selects a banner
     based on user preferences, and renders it with the configured theme.
+    Supports both static and animated rendering based on configuration.
     Falls back gracefully to the hardcoded BANNER if anything fails.
     """
     console.clear()
@@ -894,23 +895,45 @@ def print_header() -> None:
         # Select banner with terminal size adaptation
         banner = renderer.select_banner_with_adaptation(banner_db, console, config)
         
-        # Render the banner
-        panel = renderer.render_static(banner, console)
-        
-        # Add title and subtitle
-        title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
-        subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
-        
-        # Create a new panel with the banner content but with title and subtitle
-        final_panel = Panel(
-            panel.renderable,
-            title=title,
-            subtitle=subtitle,
-            box=box.HEAVY,
-            border_style="peep.accent",
-        )
-        
-        console.print(final_panel)
+        # Check if animation is enabled in configuration
+        if config.banner.animation_enabled:
+            # Log animation status at INFO level
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Animation enabled: duration={config.banner.animation_duration}s, "
+                       f"fps={config.banner.animation_fps}, intensity={config.banner.animation_intensity}")
+            
+            # Render animated banner
+            renderer.render_animated(
+                banner,
+                console,
+                duration=config.banner.animation_duration,
+                fps=config.banner.animation_fps,
+                intensity=config.banner.animation_intensity
+            )
+        else:
+            # Log animation status at INFO level
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("Animation disabled, rendering static banner")
+            
+            # Render static banner
+            panel = renderer.render_static(banner, console)
+            
+            # Add title and subtitle
+            title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
+            subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
+            
+            # Create a new panel with the banner content but with title and subtitle
+            final_panel = Panel(
+                panel.renderable,
+                title=title,
+                subtitle=subtitle,
+                box=box.HEAVY,
+                border_style="peep.accent",
+            )
+            
+            console.print(final_panel)
         
     except Exception as e:
         # Fallback to original hardcoded banner if anything fails

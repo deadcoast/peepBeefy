@@ -240,32 +240,32 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Property 18: Animation Intensity Differentiation**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.5**
 
-- [ ] 8. Phase 2: Animation System - Integration
-  - [ ] 8.1 Add animated rendering to BannerRenderer
+- [x] 8. Phase 2: Animation System - Integration
+  - [x] 8.1 Add animated rendering to BannerRenderer
     - Implement `render_animated()` method in BannerRenderer
     - Lazy-load FireAnimator only when animation enabled
     - Pass configuration parameters (duration, fps, intensity) to animator
     - Handle animation errors with fallback to static rendering
     - _Requirements: 3.1, 3.6, 3.7, 8.6_
   
-  - [ ] 8.2 Write property test for animation lazy loading
+  - [x] 8.2 Write property test for animation lazy loading
     - **Property 14: Animation Lazy Loading**
     - **Validates: Requirements 8.6**
   
-  - [ ] 8.3 Update main.py to support animated banners
+  - [x] 8.3 Update main.py to support animated banners
     - Check animation_enabled in configuration
     - Call render_animated() when enabled, render_static() when disabled
     - Log animation status at INFO level
     - _Requirements: 3.6, 3.7_
   
-  - [ ] 8.4 Write unit tests for animation integration
+  - [x] 8.4 Write unit tests for animation integration
     - Test animation displays when enabled
     - Test static banner displays when disabled
     - Test fallback to static on animation error
     - _Requirements: 3.6, 3.7_
 
-- [ ] 9. Phase 2: Animation System - Performance Optimization
-  - [ ] 9.1 Implement banner caching in BannerDatabase
+- [x] 9. Phase 2: Animation System - Performance Optimization
+  - [x] 9.1 Implement banner caching in BannerDatabase
     - Add `_cache` and `_cache_file` instance variables
     - Implement `_is_cache_valid()` checking source file modification times
     - Implement `_load_from_cache()` and `_save_to_cache()` using pickle
@@ -273,17 +273,17 @@ The implementation will use **Python** with the Rich library for terminal render
     - Support `force_reload` parameter to bypass cache
     - _Requirements: 8.1, 8.5_
   
-  - [ ] 9.2 Write property test for cache invalidation
+  - [x] 9.2 Write property test for cache invalidation
     - **Property 12: Banner Cache Invalidation**
     - **Validates: Requirements 8.5**
   
-  - [ ] 9.3 Optimize animation frame pre-computation
+  - [x] 9.3 Optimize animation frame pre-computation
     - Pre-compute all animation frames before starting Live context
     - Store frames in list for smooth playback
     - Cycle through pre-computed frames during animation
     - _Requirements: 8.3_
   
-  - [ ] 9.4 Write performance test for banner display
+  - [x] 9.4 Write performance test for banner display
     - **Property 13: Banner Display Performance**
     - **Validates: Requirements 8.3**
 

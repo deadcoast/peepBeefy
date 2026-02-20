@@ -98,12 +98,14 @@ class BannerDatabase:
         self._assets_dir = assets_dir
         self._cache: Dict[str, List[Banner]] = {}
         self._cache_timestamp: Optional[float] = None
+        self._cache_file = Path.home() / ".peepbeefy" / "banner_cache.pkl"
     
     def load_banners(self, force_reload: bool = False) -> Dict[str, List[Banner]]:
         """Load all banners from ASCII database files.
         
         Parses the ASCII database file using a state machine approach to handle
         the format with delimiters, definitions, headers, and content sections.
+        Uses caching to avoid re-parsing on subsequent loads.
         
         Args:
             force_reload: If True, bypass cache and re-parse from source
@@ -111,6 +113,12 @@ class BannerDatabase:
         Returns:
             Dictionary mapping category names to lists of banners
         """
+        # Check if cache is valid and use it
+        if not force_reload and self._is_cache_valid():
+            logger.info("Loading banners from cache")
+            return self._load_from_cache()
+        
+        # Parse from source
         ascii_file = self._assets_dir / "ASCII-Full-Logo.txt"
         
         if not ascii_file.exists():
@@ -119,10 +127,93 @@ class BannerDatabase:
         
         try:
             with open(ascii_file, 'r', encoding='utf-8') as f:
-                return self._parse_database(f)
+                banners = self._parse_database(f)
+            
+            # Save to cache
+            self._save_to_cache(banners)
+            
+            return banners
         except Exception as e:
             logger.error(f"Failed to parse ASCII database: {e}")
             return {}
+    
+    def _is_cache_valid(self) -> bool:
+        """Check if the banner cache is valid.
+        
+        Cache is valid if:
+        1. Cache file exists
+        2. Source ASCII file exists
+        3. Cache is newer than source file
+        
+        Returns:
+            True if cache is valid, False otherwise
+        """
+        if not self._cache_file.exists():
+            logger.debug("Cache file does not exist")
+            return False
+        
+        ascii_file = self._assets_dir / "ASCII-Full-Logo.txt"
+        if not ascii_file.exists():
+            logger.debug("Source ASCII file does not exist")
+            return False
+        
+        try:
+            cache_mtime = self._cache_file.stat().st_mtime
+            source_mtime = ascii_file.stat().st_mtime
+            
+            is_valid = cache_mtime > source_mtime
+            logger.debug(f"Cache validation: cache_mtime={cache_mtime}, source_mtime={source_mtime}, valid={is_valid}")
+            return is_valid
+        except Exception as e:
+            logger.warning(f"Failed to check cache validity: {e}")
+            return False
+    
+    def _load_from_cache(self) -> Dict[str, List[Banner]]:
+        """Load banners from cache file.
+        
+        Returns:
+            Dictionary mapping category names to lists of banners
+        """
+        import pickle
+        
+        try:
+            with open(self._cache_file, 'rb') as f:
+                banners = pickle.load(f)
+            logger.info(f"Loaded {sum(len(b) for b in banners.values())} banners from cache")
+            return banners
+        except Exception as e:
+            logger.warning(f"Failed to load from cache: {e}, will re-parse")
+            return {}
+    
+    def _save_to_cache(self, banners: Dict[str, List[Banner]]) -> None:
+        """Save banners to cache file.
+        
+        Args:
+            banners: Dictionary mapping category names to lists of banners
+        """
+        import pickle
+        
+        try:
+            # Create cache directory if it doesn't exist
+            self._cache_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write to temporary file first, then rename (atomic operation)
+            temp_file = self._cache_file.with_suffix('.tmp')
+            with open(temp_file, 'wb') as f:
+                pickle.dump(banners, f)
+            
+            # Atomic rename
+            temp_file.replace(self._cache_file)
+            
+            logger.info(f"Saved {sum(len(b) for b in banners.values())} banners to cache")
+        except Exception as e:
+            logger.warning(f"Failed to save to cache: {e}")
+            # Clean up temp file if it exists
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except:
+                    pass
     
     def _parse_database(self, file) -> Dict[str, List[Banner]]:
         """Parse the ASCII database file using a state machine.
@@ -182,12 +273,12 @@ class BannerDatabase:
                 # Skip definition lines (they start with #)
                 
             elif state == ParserState.HEADER:
-                if line.strip() == "---":
+                if line.strip().startswith("-") and line.strip() != "---":
+                    # This is the separator line under the header (but not a delimiter), skip it
+                    continue
+                elif line.strip() == "---":
                     # Empty banner, skip it
                     state = ParserState.DELIMITER
-                elif line.strip().startswith("-"):
-                    # This is the separator line under the header, skip it
-                    continue
                 elif line.strip().startswith("#") and ":" in line:
                     # This is a metadata comment (must have colon to be valid metadata)
                     self._parse_metadata_line(line, current_metadata)
@@ -538,6 +629,45 @@ class BannerRenderer:
         
         return fits
     
+    def render_animated(
+        self,
+        banner: Banner,
+        console: Console,
+        duration: float = 3.0,
+        fps: int = 8,
+        intensity: str = "normal"
+    ) -> None:
+        """Render an animated banner using fire effect.
+        
+        Lazy-loads the FireAnimator only when animation is enabled.
+        Falls back to static rendering if animation fails.
+        
+        Args:
+            banner: Banner object to render
+            console: Rich Console instance for rendering
+            duration: Animation duration in seconds
+            fps: Frames per second for animation
+            intensity: Animation intensity level ("subtle", "normal", "intense")
+        """
+        try:
+            # Lazy-load FireAnimator only when animation is enabled
+            from animation import FireAnimator
+            
+            # Create animator with configured intensity
+            animator = FireAnimator(intensity=intensity)
+            
+            # Run the animation
+            animator.animate_banner(banner, console, duration=duration, fps=fps)
+            
+            logger.info(f"Animated banner {banner.metadata.category}:{banner.metadata.name} "
+                       f"for {duration}s at {fps}fps with {intensity} intensity")
+            
+        except Exception as e:
+            # Fallback to static rendering on any error
+            logger.error(f"Animation failed: {e}, falling back to static rendering")
+            panel = self.render_static(banner, console)
+            console.print(panel)
+    
     def get_fallback_banner(self) -> Banner:
         """Return hardcoded default banner for error recovery.
         
@@ -566,6 +696,45 @@ class BannerRenderer:
         )
         
         return Banner(metadata=metadata, lines=fallback_lines)
+    def render_animated(
+        self,
+        banner: Banner,
+        console: Console,
+        duration: float = 3.0,
+        fps: int = 8,
+        intensity: str = "normal"
+    ) -> None:
+        """Render an animated banner using fire effect.
+
+        Lazy-loads the FireAnimator only when animation is enabled.
+        Falls back to static rendering if animation fails.
+
+        Args:
+            banner: Banner object to render
+            console: Rich Console instance for rendering
+            duration: Animation duration in seconds
+            fps: Frames per second for animation
+            intensity: Animation intensity level ("subtle", "normal", "intense")
+        """
+        try:
+            # Lazy-load FireAnimator only when animation is enabled
+            from animation import FireAnimator
+
+            # Create animator with configured intensity
+            animator = FireAnimator(intensity=intensity)
+
+            # Run the animation
+            animator.animate_banner(banner, console, duration=duration, fps=fps)
+
+            logger.info(f"Animated banner {banner.metadata.category}:{banner.metadata.name} "
+                       f"for {duration}s at {fps}fps with {intensity} intensity")
+
+        except Exception as e:
+            # Fallback to static rendering on any error
+            logger.error(f"Animation failed: {e}, falling back to static rendering")
+            panel = self.render_static(banner, console)
+            console.print(panel)
+
     
     def select_banner_with_adaptation(
         self,
