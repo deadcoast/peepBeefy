@@ -1,0 +1,452 @@
+{
+  "_meta": {
+    "contract_name": "peepBeefy Source of Truth Registry",
+    "contract_id": "peepbeefy.contract",
+    "contract_version": "0.0.3",
+    "generated_utc": "2026-02-20T04:22:27Z",
+    "purpose": [
+      "Machine-readable invariants + acceptance checks derived from chat decisions.",
+      "Used by CI/dev tools and by the app itself to detect drift (missing commands, wrong defaults, removed launchers)."
+    ],
+    "non_goals": [
+      "Not a replacement for prose docs (ASOT.md); this registry stays compact and testable.",
+      "Not a list of every process; it defines behavior and UX guarantees."
+    ]
+  },
+  "repo_layout_expectations": {
+    "docs_root": "docs",
+    "asot_dir": "docs/absolute-source-of-truth",
+    "primary_entrypoint": "src/main.py",
+    "assets": {
+      "ascii_logo": "src/assets/ASCII-Collapsed-Logo.txt"
+    },
+    "launchers": {
+      "cmd_shims": [
+        "beefy.cmd",
+        "peepBeefy.cmd"
+      ],
+      "double_click": [
+        "RUN_peepBeefy.bat"
+      ]
+    }
+  },
+  "experience_layers": {
+    "CLI01_dev_spec": {
+      "role": "Operational source-of-truth for logic + introspection; stable anchor for correctness.",
+      "audience": "Developers / power users / debugging",
+      "must_exist": true
+    },
+    "CLI02_peepBeefy_shell": {
+      "role": "Human-friendly command scheme runnable directly from shell; bridges novices to advanced usage.",
+      "audience": "Gamers who can type short commands",
+      "must_exist": true
+    },
+    "CLI03_interactive_default": {
+      "role": "Interactive menu-driven default entry; teaches CLI02 commands via repeated exposure.",
+      "audience": "Gamers opening a terminal for the first time",
+      "must_exist": true
+    }
+  },
+  "command_contract": {
+    "brand_vocabulary": {
+      "primary_entry": "beefy",
+      "primary_verb": "peep",
+      "tone": "gamer-friendly; avoids dev flag-soup in primary path",
+      "notes": [
+        "Interactive UI must show the same CLI02 commands as selectable options to teach progression."
+      ]
+    },
+    "required_commands": [
+      {
+        "id": "CMD00",
+        "layer": "CLI03",
+        "command": "beefy",
+        "expects": {
+          "default_mode": "interactive"
+        }
+      },
+      {
+        "id": "CMD10",
+        "layer": "CLI02",
+        "command": "beefy peep all",
+        "expects": {
+          "outputs": [
+            "heavy_process_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD11",
+        "layer": "CLI02",
+        "command": "beefy peep cpu",
+        "expects": {
+          "outputs": [
+            "cpu_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD12",
+        "layer": "CLI02",
+        "command": "beefy peep io",
+        "expects": {
+          "outputs": [
+            "io_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD13",
+        "layer": "CLI02",
+        "command": "beefy peep mem",
+        "expects": {
+          "outputs": [
+            "mem_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD14",
+        "layer": "CLI02",
+        "command": "beefy peep clutter",
+        "expects": {
+          "outputs": [
+            "tagged_clutter_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD15",
+        "layer": "CLI02",
+        "command": "beefy peep watch",
+        "expects": {
+          "outputs": [
+            "live_dashboard"
+          ],
+          "optional": true
+        }
+      },
+      {
+        "id": "CMD20",
+        "layer": "CLI02",
+        "command": "beefy baseline save",
+        "expects": {
+          "writes": [
+            "baseline_snapshot_file"
+          ]
+        }
+      },
+      {
+        "id": "CMD21",
+        "layer": "CLI02",
+        "command": "beefy baseline diff",
+        "expects": {
+          "reads": [
+            "baseline_snapshot_file"
+          ],
+          "outputs": [
+            "process_diff_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD30",
+        "layer": "CLI01",
+        "command": "beefy dev info",
+        "expects": {
+          "outputs": [
+            "process_detail_view"
+          ]
+        }
+      },
+      {
+        "id": "CMD31",
+        "layer": "CLI01",
+        "command": "beefy dev dump",
+        "expects": {
+          "outputs": [
+            "json_dump"
+          ]
+        }
+      },
+      {
+        "id": "CMD32",
+        "layer": "CLI01",
+        "command": "beefy dev top cpu",
+        "expects": {
+          "outputs": [
+            "cpu_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD33",
+        "layer": "CLI01",
+        "command": "beefy dev top io",
+        "expects": {
+          "outputs": [
+            "io_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD34",
+        "layer": "CLI01",
+        "command": "beefy dev top mem",
+        "expects": {
+          "outputs": [
+            "mem_top_table"
+          ]
+        }
+      },
+      {
+        "id": "CMD35",
+        "layer": "CLI01",
+        "command": "beefy dev top beef",
+        "expects": {
+          "outputs": [
+            "beef_score_table"
+          ],
+          "optional": true
+        }
+      }
+    ],
+    "shelved_commands": [
+      {
+        "id": "SHELF01",
+        "command": "beefy trim ...",
+        "status": "shelved",
+        "reason": "Requires safe termination guardrails + permission model; not part of visibility-first phase."
+      }
+    ]
+  },
+  "invariants": [
+    {
+      "id": "INV01",
+      "title": "Interactive is the default entry experience",
+      "must": true,
+      "why": "Primary audience is gamers/non-devs; typing long commands is a barrier.",
+      "origin_tags": [
+        "REQ01",
+        "CLI03",
+        "TSN01"
+      ]
+    },
+    {
+      "id": "INV02",
+      "title": "Progression path is taught via command mirroring",
+      "must": true,
+      "why": "Interactive menu must show CLI02 commands so users learn them organically.",
+      "origin_tags": [
+        "CLI02",
+        "CLI03",
+        "TSH01"
+      ]
+    },
+    {
+      "id": "INV03",
+      "title": "Discovery mode is resource-driven",
+      "must": true,
+      "why": "Users don't know what's normal; tool must surface what is actually heavy now.",
+      "origin_tags": [
+        "REQ01"
+      ]
+    },
+    {
+      "id": "INV04",
+      "title": "Service-backed processes must be explainable",
+      "must": true,
+      "why": "Windows 11 runs many 'invisible' services; tool must map PIDs to services when possible.",
+      "origin_tags": [
+        "REQ01"
+      ]
+    },
+    {
+      "id": "INV05",
+      "title": "Default output is legible and not metric-spam",
+      "must": true,
+      "why": "Rookie users need color/hierarchy and a small number of key columns.",
+      "origin_tags": [
+        "REQ02"
+      ]
+    },
+    {
+      "id": "INV06",
+      "title": "Baseline snapshot + diff exists",
+      "must": true,
+      "why": "Catches 'what started itself' without requiring prior knowledge.",
+      "origin_tags": [
+        "REQ01"
+      ]
+    },
+    {
+      "id": "INV07",
+      "title": "Visibility-first phase: no termination in primary flow",
+      "must": true,
+      "why": "Killing processes needs guardrails; current phase is discovery/clarity.",
+      "origin_tags": [
+        "SHELVED_FEATURES"
+      ]
+    },
+    {
+      "id": "INV08",
+      "title": "Launch ergonomics: a no-typing option exists",
+      "must": true,
+      "why": "Terminal friction is real; double-click launcher or equivalent is required.",
+      "origin_tags": [
+        "REQ01"
+      ]
+    }
+  ],
+  "output_contract": {
+    "rendering": {
+      "library": [
+        "rich",
+        "typer"
+      ],
+      "must_use_color_coding": true,
+      "must_avoid_overwhelming_density_by_default": true
+    },
+    "views": {
+      "heavy_process_table": {
+        "default_limit": 25,
+        "required_fields": [
+          "pid",
+          "name",
+          "cpu_percent",
+          "ram_bytes"
+        ],
+        "recommended_fields": [
+          "disk_read_bps",
+          "disk_write_bps",
+          "type",
+          "service_names",
+          "tags",
+          "beef_score"
+        ]
+      },
+      "process_detail_view": {
+        "required_fields": [
+          "pid",
+          "name",
+          "exe_path",
+          "cmdline",
+          "parent_pid",
+          "username"
+        ],
+        "recommended_fields": [
+          "service_names",
+          "tags",
+          "cpu_sample",
+          "io_sample",
+          "ram_bytes"
+        ]
+      },
+      "process_diff_table": {
+        "required_fields": [
+          "change_type",
+          "name",
+          "pid",
+          "exe_path"
+        ],
+        "recommended_fields": [
+          "tags",
+          "service_names"
+        ]
+      }
+    }
+  },
+  "acceptance_checks": [
+    {
+      "id": "CHK01",
+      "type": "filesystem_exists",
+      "path": "src/main.py",
+      "severity": "must"
+    },
+    {
+      "id": "CHK02",
+      "type": "filesystem_exists",
+      "path": "RUN_peepBeefy.bat",
+      "severity": "must"
+    },
+    {
+      "id": "CHK03",
+      "type": "filesystem_exists",
+      "path": "beefy.cmd",
+      "severity": "must"
+    },
+    {
+      "id": "CHK04",
+      "type": "filesystem_exists",
+      "path": "peepBeefy.cmd",
+      "severity": "must"
+    },
+    {
+      "id": "CHK05",
+      "type": "filesystem_exists",
+      "path": "docs/absolute-source-of-truth/ASOT.md",
+      "severity": "should"
+    },
+    {
+      "id": "CHK10",
+      "type": "cli_help_contains",
+      "invoke": [
+        "beefy",
+        "--help"
+      ],
+      "must_contain_any": [
+        "peep",
+        "baseline",
+        "dev"
+      ],
+      "severity": "must"
+    },
+    {
+      "id": "CHK11",
+      "type": "cli_help_contains",
+      "invoke": [
+        "beefy",
+        "peep",
+        "--help"
+      ],
+      "must_contain_any": [
+        "all",
+        "cpu",
+        "io",
+        "mem",
+        "clutter"
+      ],
+      "severity": "must"
+    },
+    {
+      "id": "CHK20",
+      "type": "interactive_default",
+      "invoke": [
+        "beefy"
+      ],
+      "severity": "must",
+      "automation": {
+        "preferred": "contract_probe_env",
+        "env_var": "PEEPBEEFY_CONTRACT_PROBE",
+        "expected_stdout_regex": "MODE=interactive",
+        "notes": "Implement a non-interactive probe mode that prints MODE=interactive when no args are passed."
+      },
+      "manual_fallback": "Launching `beefy` with no args opens the interactive UI and presents command options."
+    },
+    {
+      "id": "CHK30",
+      "type": "cli_help_not_contains",
+      "invoke": [
+        "beefy",
+        "--help"
+      ],
+      "must_not_contain_any": [
+        "trim",
+        "kill",
+        "terminate"
+      ],
+      "severity": "must",
+      "notes": "Until trim feature ships with guardrails, do not expose it in primary help."
+    }
+  ]
+}

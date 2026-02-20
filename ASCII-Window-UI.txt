@@ -1,0 +1,75 @@
+# ASCII WINDOW TEMPLATES
+---
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║  ╭─────────────────────╮         ╭────────────────────────────────────────╮    ║
+║  │                     │         │                                        │    ║
+║  │                     │         │                                        │    ║
+║  │                     │         │                                        │    ║
+║  │                     │         │                                        │    ║
+║  │                     │         │                                        │    ║
+║  │                     │         │                                        │    ║
+║  ╰─────────────────────╯         ╰────────────────────────────────────────╯    ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+# UI_Capsules
+---
+
+[1]
+╭─────────────────────╮
+│                     │
+│                     │
+│                     │
+│                     │
+│                     │
+│                     │
+╰─────────────────────╯
+
+[2]
+╭────────────────────────────────────────╮
+│                                        │
+│                                        │
+│                                        │
+│                                        │
+│                                        │
+│                                        │
+╰────────────────────────────────────────╯
+
+# FULL_BOX
+---
+
+[1]
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+# NAMING TYPES
+---
+
+`id`: The ID of the UI Element
+`val`: The value of the UI Element
+`func`: The function of the UI Element
+`PG`: The page of the UI Element
+`hotkey`: The hotkey of the UI Element
+`cmd`: The command of the UI Element
+`opt`: The option of the UI Element
+`title`: The title of the UI Element
+`centered`: centering the attached asset to the center of the UI Element
+`left`: aligning the attached asset to the left of the UI Element
+`right`: aligning the attached asset to the right of the UI Element
+`top`: aligning the attached asset to the top of the UI Element
+`bottom`: aligning the attached asset to the bottom of the UI Element
+`horizontal`: aligning the attached asset horizontally to the center of the UI Element
+`vertical`: aligning the attached asset vertically to the center of the UI Element
+`full`: aligning the attached asset to the full width of the UI Element
+`[-]`: Value up button
+`[+]`: Value down button
+`[>]`: Value Collapsed button
+`[v]`: Value Expanded button
