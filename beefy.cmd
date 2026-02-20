@@ -1,27 +1,20 @@
 @echo off
-setlocal enabledelayedexpansion
 
-REM beefy / peepBeefy command wrapper v0.0.4
+REM beefy — CLI wrapper
 REM Usage:
-REM   beefy            -> starts interactive mode
+REM   beefy            -> interactive mode
 REM   beefy peep io    -> CLI-only mode
 REM   beefy --help     -> help
 
 set SCRIPT_DIR=%~dp0
-set SCRIPT=%SCRIPT_DIR%src\main.py
 
-where py >nul 2>nul
+where uv >nul 2>nul
 if errorlevel 1 (
-  echo [beefy] Python launcher ^(py^) not found. Install Python 3 and try again.
+  echo [beefy] uv not found. Install it with:
+  echo.
+  echo     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  echo.
   exit /b 1
 )
 
-py -3 -c "import psutil, rich, typer" >nul 2>nul
-if errorlevel 1 (
-  echo [beefy] Missing packages. Run:
-  echo     py -m pip install --user psutil rich typer
-  exit /b 1
-)
-
-py -3 "%SCRIPT%" %*
-endlocal
+uv run "%SCRIPT_DIR%src\main.py" %*

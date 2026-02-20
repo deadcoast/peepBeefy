@@ -8,22 +8,23 @@ Goal:
 
 Quick start (Windows 11):
 
-- Install Python 3 (from python.org) if you don't already have it.
-- Install dependencies once:
+- Install uv if you don't already have it:
 
 ```powershell
-py -m pip install --user psutil rich typer # installs the python dependencies for peepBeefy
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 Start the interactive CLI (zero typing):
-> [Double-click-RUN_peepBeefy.bat](RUN_peepBeefy.bat)
+> [Double-click RUN_peepBeefy.bat](RUN_peepBeefy.bat)
 
-Alternatively from the CLI:
-- Run the cli from the terminal(ensure run inside the root folder):
+Or from the terminal (run inside the root folder):
 
 ```powershell
-beefy # call the application directly in the terminal
+beefy                # interactive mode
+beefy peep all       # direct CLI
 ```
+
+> uv handles Python and all dependencies automatically — no manual pip installs needed.
 
 ---
 
