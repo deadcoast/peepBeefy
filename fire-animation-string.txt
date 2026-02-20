@@ -1,128 +1,207 @@
+# ══════════════════════════════════════════════════════════════
+#  FIRE ANIMATION — peepBeefy Banner
+#
+#  8-frame sway cycle. Forward lean (01→05), reverse lean (B-slides).
+#  Lines 1-5 sway with decreasing amplitude + counter-sway on Line5.
+#  Lines 6-8 are anchored (text body = fuel source, doesn't move).
+#
+# ══════════════════════════════════════════════════════════════
+#  FIRE PALETTE  (low-bit — classic demoscene fire gradient)
+#
+#  The fire rises from the text. Tips are sparse and bright.
+#  Core is dense and hot. Text glows white-hot at the source.
+#
+#   Line1  TIPS      #FFD700  bright yellow      sparse, flickering tips
+#   Line2  UPPER     #FF8C00  dark orange        gathering, visible heat
+#   Line3  BODY      #FF4500  orange-red         dense flame core
+#   Line4  LOWER     #CC2200  dark red-orange    heavy base of flame
+#   Line5  EMBER     #8B1A00  deep ember red     where fire meets text
+#   Line6  TEXT-HOT  #FFFFFF  bold white         white-hot letterforms
+#   Line7  TEXT-MID  #CCCCCC  white              cooling glow
+#   Line8  TEXT-DIM  #999999  dim gray           base, furthest from flame
+#
+#  ANSI FALLBACK (strict 16-color terminals):
+#   Line1  bright_yellow   \e[93m
+#   Line2  yellow          \e[33m
+#   Line3  bright_red      \e[91m    (reads orange on most terminals)
+#   Line4  red             \e[31m
+#   Line5  red dim         \e[2;31m
+#   Line6  bold white      \e[1;37m
+#   Line7  white           \e[37m
+#   Line8  dim             \e[2m
+#
+# ══════════════════════════════════════════════════════════════
+#  ANIMATION CYCLE
+#
+#  FORWARD:   Slide_01 → 02 → 03 → 04 → 05 (return to default)
+#  REVERSE:   Slide_01 → 02-b → 03-b → 04-b → 05-b (return to default)
+#
+#  Full loop: 01 → 02 → 03 → 04 → 05 → 02-b → 03-b → 04-b → 05-b → repeat
+#
+#  Each offset is DELTA from previous frame.
+#  Only Lines 1-5 sway. Lines 6-8 are anchored.
+# ══════════════════════════════════════════════════════════════
+
+
 # --------------------------------------------------
 # Slide_01 (DEFAULT SPACING)
 # --------------------------------------------------
-# Line1: 0
-# Line2: 0
-# Line3: 0
-# Line4: 0
-# Line5: 0
+# Line1: 0      #FFD700  bright yellow
+# Line2: 0      #FF8C00  dark orange
+# Line3: 0      #FF4500  orange-red
+# Line4: 0      #CC2200  dark red-orange
+# Line5: 0      #8B1A00  deep ember red
+# Line6: fixed  #FFFFFF  bold white
+# Line7: fixed  #CCCCCC  white
+# Line8: fixed  #999999  dim gray
 
-                          (             (           
-          (    (        ( )\    (    (  )\ )  (     
- `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
- /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
-|_|              |_|                          |__/ 
+                          (             (
+          (    (        ( )\    (    (  )\ )  (
+ `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+ /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+|_|              |_|                          |__/
 
 # --------------------------------------------------
 
-# --------
+# --------------------------------------------------
 # Slide_02
-# --------
-# Line1: -2
-# Line2: -2
-# Line3: -1
-# Line4: -1
-# Line5: +1
+# --------------------------------------------------
+# Line1: -2     #FFD700  bright yellow
+# Line2: -2     #FF8C00  dark orange
+# Line3: -1     #FF4500  orange-red
+# Line4: -1     #CC2200  dark red-orange
+# Line5: +1     #8B1A00  deep ember red
+# Line6: fixed  #FFFFFF  bold white
+# Line7: fixed  #CCCCCC  white
+# Line8: fixed  #999999  dim gray
 
-| 1 |                     (             (    
-| 2 |       (    (        ( )\    (    (  )\ )  (     
-| 3 |`  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
-| 4 |/(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
-| 8 ||_|              |_|                          |__/  
+| 1 |                     (             (
+| 2 |       (    (        ( )\    (    (  )\ )  (
+| 3 |`  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+| 4 |/(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+| 8 ||_|              |_|                          |__/
 
-# ------------------------------------------------------
+# --------------------------------------------------
 # Slide_03
-# --------
-# Line1: -1
-# Line2: +1
-# Line3: +1
-# Line4: +1
-# Line5: -1
+# --------------------------------------------------
+# Line1: -1     #FFD700  bright yellow
+# Line2: +1     #FF8C00  dark orange
+# Line3: +1     #FF4500  orange-red
+# Line4: +1     #CC2200  dark red-orange
+# Line5: -1     #8B1A00  deep ember red
+# Line6: fixed  #FFFFFF  bold white
+# Line7: fixed  #CCCCCC  white
+# Line8: fixed  #999999  dim gray
 
-| 1 |                      (             (           
-| 2 |        (    (         ( )\    (    (  )\ )  (     
-| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
-| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
-| 8 ||_|              |_|                          |__/  
+| 1 |                      (             (
+| 2 |        (    (         ( )\    (    (  )\ )  (
+| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+| 8 ||_|              |_|                          |__/
 
-# ------------------------------------------------------
+# --------------------------------------------------
 # Slide_04
-# --------
-# Line1: +2
-# Line2: +1
-# Line3: +1
-# Line4: +2
-# Line5: +1
+# --------------------------------------------------
+# Line1: +2     #FFD700  bright yellow
+# Line2: +1     #FF8C00  dark orange
+# Line3: +1     #FF4500  orange-red
+# Line4: +2     #CC2200  dark red-orange
+# Line5: +1     #8B1A00  deep ember red
+# Line6: fixed  #FFFFFF  bold white
+# Line7: fixed  #CCCCCC  white
+# Line8: fixed  #999999  dim gray
 
-| 1 |                         (             (           
-| 2 |         (    (         ( )\    (    (  )\ )  (     
-| 3 |  `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
-| 4 |   /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
+| 1 |                         (             (
+| 2 |         (    (         ( )\    (    (  )\ )  (
+| 3 |  `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+| 4 |   /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+| 5 | ((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
 | 8 ||_|
 
-# ------------------------------------------------------
-# Slide_05: RETURN TO `DEFAULT_SPACING`
 # --------------------------------------------------
-# Line1: +1
-# Line2: -1
-# Line3: -1
-# Line4: -2
-# Line5: -1
+# Slide_05: RETURN TO DEFAULT_SPACING
+# --------------------------------------------------
+# Line1: +1     #FFD700  bright yellow
+# Line2: -1     #FF8C00  dark orange
+# Line3: -1     #FF4500  orange-red
+# Line4: -2     #CC2200  dark red-orange
+# Line5: -1     #8B1A00  deep ember red
+# Line6: fixed  #FFFFFF  bold white
+# Line7: fixed  #CCCCCC  white
+# Line8: fixed  #999999  dim gray
 
-| 1 |                          (             (           
-| 2 |          (    (        ( )\    (    (  )\ )  (     
-| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )  
-| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(  
-| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_)) 
-| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || | 
-| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, | 
-| 8 ||_|              |_|                          |__/ 
+| 1 |                          (             (
+| 2 |          (    (        ( )\    (    (  )\ )  (
+| 3 | `  )    ))\  ))\ `  )  )((_)  ))\  ))\(()/(  )\ )
+| 4 | /(/(   /((_)/((_)/(/( ((_)_  /((_)/((_)/(_))(()/(
+| 5 |((_)_\ (_)) (_)) ((_)_\ | _ )(_)) (_)) (_) _| )(_))
+| 6 || '_ \)/ -_)/ -_)| '_ \)| _ \/ -_)/ -_) |  _|| || |
+| 7 || .__/ \___|\___|| .__/ |___/\___|\___| |_|   \_, |
+| 8 ||_|              |_|                          |__/
 
 
-# ------------------------------------------------------
-# Slide_02-b - REVERSE ORIGINAL SLIDE SPACING POSITIVE AND NEGATIVE WEIGHTS FOR 'SWAY' ANIMATION PATTERN TO MAKE THE FLAMES SEEM MORE LIVING
-# ----
-# Line1: +2
-# Line2: +2
-# Line3: +1
-# Line4: +1
-# Line5: -1
+# ══════════════════════════════════════════════════════════════
+#  REVERSE SWAY (B-slides)
+#
+#  Mirror of the forward sway. All deltas are sign-flipped.
+#  Played after forward cycle to create a living, breathing flame.
+# ══════════════════════════════════════════════════════════════
 
-# ------------------------------------------------------
-# Slide_03-b
-# --------
-# Line1: +1
-# Line2: -1
-# Line3: -1
-# Line4: -1
-# Line5: +1
+# --------------------------------------------------
+# Slide_02-b  (reverse of Slide_02 deltas)
+# --------------------------------------------------
+# Line1: +2     #FFD700
+# Line2: +2     #FF8C00
+# Line3: +1     #FF4500
+# Line4: +1     #CC2200
+# Line5: -1     #8B1A00
+# Line6: fixed  #FFFFFF
+# Line7: fixed  #CCCCCC
+# Line8: fixed  #999999
 
-# ------------------------------------------------------
-# Slide_04-b
-# --------
-# Line1: -2
-# Line2: -1
-# Line3: -1
-# Line4: -2
-# Line5: -1
+# --------------------------------------------------
+# Slide_03-b  (reverse of Slide_03 deltas)
+# --------------------------------------------------
+# Line1: +1     #FFD700
+# Line2: -1     #FF8C00
+# Line3: -1     #FF4500
+# Line4: -1     #CC2200
+# Line5: +1     #8B1A00
+# Line6: fixed  #FFFFFF
+# Line7: fixed  #CCCCCC
+# Line8: fixed  #999999
 
-# ------------------------------------------------------
-# Slide_05-b: RETURN TO `DEFAULT_SPACING`
-# --------
-# Line1: -1
-# Line2: +1
-# Line3: +1
-# Line4: +2
-# Line5: +1
+# --------------------------------------------------
+# Slide_04-b  (reverse of Slide_04 deltas)
+# --------------------------------------------------
+# Line1: -2     #FFD700
+# Line2: -1     #FF8C00
+# Line3: -1     #FF4500
+# Line4: -2     #CC2200
+# Line5: -1     #8B1A00
+# Line6: fixed  #FFFFFF
+# Line7: fixed  #CCCCCC
+# Line8: fixed  #999999
+
+# --------------------------------------------------
+# Slide_05-b: RETURN TO DEFAULT_SPACING
+# --------------------------------------------------
+# Line1: -1     #FFD700
+# Line2: +1     #FF8C00
+# Line3: +1     #FF4500
+# Line4: +2     #CC2200
+# Line5: +1     #8B1A00
+# Line6: fixed  #FFFFFF
+# Line7: fixed  #CCCCCC
+# Line8: fixed  #999999
