@@ -41,3 +41,7 @@ Based on your rules, here is how the `peepBeefy` scheme looks when strictly foll
 |                   | `[TODO01]` | *To be populated*                             |
 
 ---
+
+peepBeefy: `TRIM THE FAT, KILL THE PROCESSES`
+
+---

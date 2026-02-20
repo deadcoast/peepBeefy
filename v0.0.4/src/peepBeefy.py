@@ -1,0 +1,1172 @@
+
+"""
+peepBeefy (v0.0.3 prototype)
+
+Gamer-focused process "peeper" that surfaces what's actually clogging your system.
+- Interactive, beginner-friendly (default mode)
+- Rich tables with color-coded metrics
+- Service mapping (helps explain "hidden" background stuff)
+- Snapshot + diff (catch what started itself)
+
+No process termination in this version (by design).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import time
+from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+import psutil
+import typer
+from rich import box
+from rich.align import Align
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+from rich.text import Text
+from rich.traceback import install as rich_traceback_install
+from rich.live import Live
+
+# --- Rich / Typer setup -------------------------------------------------------
+
+rich_traceback_install(show_locals=False, suppress=[typer, psutil])
+console = Console(highlight=False)
+app = typer.Typer(
+    add_completion=False,
+    help="peepBeefy — find and display heavy running processes (gamer-friendly).",
+)
+
+peep_app = typer.Typer(add_completion=False, help="User-friendly 'peep' commands.")
+dev_app = typer.Typer(add_completion=False, help="Developer-spec commands (advanced).")
+baseline_app = typer.Typer(add_completion=False, help="Baseline snapshot + diff.")
+app.add_typer(peep_app, name="peep")
+app.add_typer(dev_app, name="dev")
+app.add_typer(baseline_app, name="baseline")
+
+dev_top_app = typer.Typer(add_completion=False, help="Developer-spec 'top' commands with explicit flags.")
+dev_app.add_typer(dev_top_app, name="top")
+
+
+
+# --- Branding ----------------------------------------------------------------
+
+BANNER = r"""
+  ____                  ____            ____
+ |  _ \ ___  ___ _ __   | __ )  ___  ___|  _ \  ___  ___ _ __
+ | |_) / _ \/ _ \ '_ \  |  _ \ / _ \/ _ \ | | |/ _ \/ _ \ '__|
+ |  __/  __/  __/ |_) | | |_) |  __/  __/ |_| |  __/  __/ |
+ |_|   \___|\___| .__/  |____/ \___|\___|____/ \___|\___|_|
+                |_|
+"""
+
+APP_NAME = "peepBeefy"
+VERSION = "0.0.3"
+
+
+# --- Data model ---------------------------------------------------------------
+
+@dataclass
+class ServiceInfo:
+    name: str
+    display_name: str = ""
+    start_type: str = ""  # auto / manual / disabled (best-effort)
+    status: str = ""      # running / stopped (best-effort)
+
+
+@dataclass
+class ProcRow:
+    pid: int
+    name: str
+    exe: str
+    username: str
+    cpu_pct: float
+    rss_bytes: int
+    read_bps: float
+    write_bps: float
+    beef_score: float
+    kind: str                 # Windows / Service / App
+    tags: List[str]
+    services: List[ServiceInfo]
+    cmdline: str
+
+
+# --- Classification rules -----------------------------------------------------
+
+# Tag icons kept minimal — readable for rookie users.
+TAG_DEFS: Dict[str, Tuple[str, str]] = {
+    "OVERLAY": ("🕶️", "Overlay / hook"),
+    "RGB": ("🌈", "RGB / vendor control"),
+    "VR": ("🥽", "VR runtime"),
+    "VPN": ("🌐", "VPN"),
+    "UPDATER": ("⬆️", "Updater"),
+    "LAUNCHER": ("🚀", "Launcher"),
+    "BROWSER": ("🌍", "Browser"),
+    "MONITOR": ("📈", "Monitoring"),
+    "AUDIO": ("🔊", "Audio stack"),
+    "CAPTURE": ("🎥", "Capture / streaming"),
+}
+
+# Real, non-placeholder patterns (best-effort).
+# We match against: process name, exe path, cmdline (lowercased).
+TAG_RULES: List[Tuple[str, List[str]]] = [
+    # Overlays / hooks / OSD
+    ("OVERLAY", [
+        r"\brtss(\.exe)?\b",
+        r"rivatuner",
+        r"gamebarpresencewriter",
+        r"xboxgamebar",
+        r"\bgameoverlayui\.exe\b",         # Steam overlay helper
+        r"nvsphelper",                     # NVIDIA Share helper (older)
+        r"nvidia share",
+        r"shadowplay",
+        r"obs64\.exe|obs\.exe",
+        r"discord\.exe.*--type=renderer",  # discord overlay path often uses renderer procs
+    ]),
+    # Capture / streaming (separate from overlay)
+    ("CAPTURE", [
+        r"\bobs64\.exe\b|\bobs\.exe\b",
+        r"\bstreamlabs\b",
+        r"\bxsplit\b",
+        r"\bnvidia broadcast\b",
+    ]),
+    # MSI / ASUS / Corsair / etc RGB + vendor suites
+    ("RGB", [
+        r"msi\.center|msi center|msi_centralserver|msi\.centralserver|mystic",
+        r"mystic_light|mysticlight|ledkeeper|lightkeeper",
+        r"dragon center",
+        r"icue|corsair\.service",
+        r"razer|synapse|chroma",
+        r"armoury|aura",
+        r"signalrgb",
+    ]),
+    # VR runtime
+    ("VR", [
+        r"\bovrserver_x64\.exe\b|\bovrserver\.exe\b",
+        r"\bovrserviceLauncher\.exe\b",
+        r"oculus|meta quest|quest remote desktop",
+        r"steamvr",
+        r"virtualdesktop",
+    ]),
+    # VPN
+    ("VPN", [
+        r"nordvpn",
+        r"expressvpn",
+        r"surfshark",
+        r"protonvpn",
+        r"openvpn",
+        r"wireguard",
+    ]),
+    # Updaters
+    ("UPDATER", [
+        r"updater",
+        r"update\.exe",
+        r"googleupdate",
+        r"adobe.*(update|updater)",
+        r"epicwebhelper.*update",
+        r"steam.*(update|service)",
+    ]),
+    # Launchers
+    ("LAUNCHER", [
+        r"epicgameslauncher",
+        r"battle\.net|blizzard",
+        r"riotclient",
+        r"steam\.exe",
+        r"gog galaxy",
+        r"ubisoftconnect|uplay",
+    ]),
+    # Browsers
+    ("BROWSER", [
+        r"\bchrome\.exe\b|\bmsedge\.exe\b|\bfirefox\.exe\b",
+    ]),
+    # Monitoring / telemetry tools
+    ("MONITOR", [
+        r"presentmon",
+        r"capframex",
+        r"hwinfo",
+        r"core temp",
+        r"aida64",
+        r"msiafterburner",
+    ]),
+    # Audio stack / enhancement
+    ("AUDIO", [
+        r"nahimic",
+        r"sonic studio",
+        r"steelseries sonar",
+        r"voicemeeter",
+    ]),
+]
+
+
+# --- Utility functions --------------------------------------------------------
+
+def _now_ts() -> float:
+    return time.time()
+
+
+def _windows_dir() -> str:
+    return os.environ.get("WINDIR", r"C:\Windows")
+
+
+def is_windows_process(exe_path: str) -> bool:
+    if not exe_path:
+        return False
+    w = _windows_dir().lower().rstrip("\\/")
+    p = exe_path.lower()
+    return p.startswith(w + "\\") or p.startswith(w + "/")
+
+
+def short_path(path: str, max_len: int = 54) -> str:
+    if not path:
+        return ""
+    if len(path) <= max_len:
+        return path
+    # keep drive + tail
+    drive = ""
+    if re.match(r"^[a-zA-Z]:\\", path):
+        drive = path[:3]
+        rest = path[3:]
+    else:
+        rest = path
+    tail_len = max_len - len(drive) - 5
+    return f"{drive}…\\{rest[-tail_len:]}"
+
+
+def bytes_to_human(n: float) -> str:
+    # bytes
+    if n < 1024:
+        return f"{n:.0f} B"
+    units = ["KB", "MB", "GB", "TB"]
+    v = n
+    for u in units:
+        v /= 1024.0
+        if v < 1024.0:
+            return f"{v:.1f} {u}"
+    return f"{v:.1f} PB"
+
+
+def rate_to_human(bps: float) -> str:
+    return f"{bytes_to_human(bps)}/s"
+
+
+def color_metric(value: float, thresholds: Tuple[float, float], fmt: str = "{:.1f}") -> Text:
+    """
+    thresholds: (warn, hot)
+    """
+    warn, hot = thresholds
+    if value >= hot:
+        style = "bold red"
+    elif value >= warn:
+        style = "yellow"
+    else:
+        style = "green"
+    return Text(fmt.format(value), style=style)
+
+
+def color_bytes(value_bytes: float, thresholds_mb_s: Tuple[float, float]) -> Text:
+    mb_s = value_bytes / (1024 ** 2)
+    warn, hot = thresholds_mb_s
+    if mb_s >= hot:
+        style = "bold red"
+    elif mb_s >= warn:
+        style = "yellow"
+    else:
+        style = "green"
+    return Text(rate_to_human(value_bytes), style=style)
+
+
+def safe_str(x: Any) -> str:
+    try:
+        return str(x)
+    except Exception:
+        return ""
+
+
+def match_tags(name: str, exe: str, cmdline: str) -> List[str]:
+    hay = f"{name} {exe} {cmdline}".lower()
+    tags: List[str] = []
+    for tag, patterns in TAG_RULES:
+        for pat in patterns:
+            try:
+                if re.search(pat, hay, re.IGNORECASE):
+                    tags.append(tag)
+                    break
+            except re.error:
+                # should never happen, but don't kill the app
+                continue
+    # Deduplicate preserving order
+    seen = set()
+    out: List[str] = []
+    for t in tags:
+        if t not in seen:
+            out.append(t)
+            seen.add(t)
+    return out
+
+
+def get_services_by_pid() -> Dict[int, List[ServiceInfo]]:
+    """
+    Map PID -> list of ServiceInfo (best-effort).
+    Requires Windows. If not available or access denied, returns empty mapping.
+    """
+    mapping: Dict[int, List[ServiceInfo]] = {}
+    if os.name != "nt":
+        return mapping
+    try:
+        for s in psutil.win_service_iter():
+            try:
+                d = s.as_dict()
+                pid = d.get("pid") or 0
+                if not pid:
+                    continue
+                si = ServiceInfo(
+                    name=safe_str(d.get("name", "")),
+                    display_name=safe_str(d.get("display_name", "")),
+                    start_type=safe_str(d.get("start_type", "")),
+                    status=safe_str(d.get("status", "")),
+                )
+                mapping.setdefault(int(pid), []).append(si)
+            except Exception:
+                continue
+    except Exception:
+        return {}
+    return mapping
+
+
+def compute_beef_score(cpu_pct: float, rss_bytes: int, read_bps: float, write_bps: float) -> float:
+    """
+    Beef score: higher = more likely to cause "why is my PC chugging?"
+    Tuned for gamers: disk spikes and CPU spikes matter more than RAM alone.
+
+    - CPU: dominant
+    - IO: very dominant (stutter risk)
+    - RAM: moderate
+    """
+    mem_mb = rss_bytes / (1024 ** 2)
+    io_mb_s = (read_bps + write_bps) / (1024 ** 2)
+    return cpu_pct * 2.0 + io_mb_s * 8.0 + mem_mb / 250.0
+
+
+def proc_kind(exe: str, username: str, pid: int, svc_map: Dict[int, List[ServiceInfo]]) -> str:
+    if is_windows_process(exe):
+        return "Windows"
+    # Service-backed if mapped OR running under a service account.
+    u = (username or "").lower()
+    if pid in svc_map:
+        return "Service"
+    if any(x in u for x in ["nt authority\\system", "local service", "network service"]):
+        return "Service"
+    return "App"
+
+
+def try_get(proc: psutil.Process, attr: str, default: Any = "") -> Any:
+    try:
+        return getattr(proc, attr)()
+    except Exception:
+        return default
+
+
+# --- Sampling engine ----------------------------------------------------------
+
+def collect_samples(
+    seconds: float = 1.0,
+    include_windows: bool = False,
+    include_services: bool = True,
+) -> List[ProcRow]:
+    """
+    Snapshot processes and sample CPU + IO deltas over `seconds`.
+    """
+    svc_map = get_services_by_pid() if include_services else {}
+    start_io: Dict[int, Tuple[int, int]] = {}
+    procs: Dict[int, Dict[str, Any]] = {}
+
+    # Prime CPU percent readings
+    for p in psutil.process_iter(attrs=["pid", "name"]):
+        pid = p.info.get("pid", 0) or 0
+        if not pid:
+            continue
+        try:
+            p.cpu_percent(None)
+            io0 = None
+            try:
+                io0 = p.io_counters()
+            except Exception:
+                io0 = None
+            if io0:
+                start_io[pid] = (int(getattr(io0, "read_bytes", 0)), int(getattr(io0, "write_bytes", 0)))
+            procs[pid] = {"p": p}
+        except Exception:
+            continue
+
+    time.sleep(max(0.2, float(seconds)))
+
+    rows: List[ProcRow] = []
+    for pid, meta in procs.items():
+        try:
+            p = psutil.Process(pid)
+            name = safe_str(p.name())
+            exe = safe_str(try_get(p, "exe", ""))
+            if not include_windows and is_windows_process(exe):
+                continue
+            username = safe_str(try_get(p, "username", ""))
+            cmdline_list = try_get(p, "cmdline", [])
+            cmdline = " ".join(cmdline_list) if isinstance(cmdline_list, list) else safe_str(cmdline_list)
+
+            cpu = float(p.cpu_percent(None))
+            rss = int(try_get(p, "memory_info", None).rss) if try_get(p, "memory_info", None) else 0
+
+            io1 = None
+            try:
+                io1 = p.io_counters()
+            except Exception:
+                io1 = None
+            r_bps = 0.0
+            w_bps = 0.0
+            if io1 and pid in start_io:
+                r0, w0 = start_io.get(pid, (0, 0))
+                r1 = int(getattr(io1, "read_bytes", 0))
+                w1 = int(getattr(io1, "write_bytes", 0))
+                dt = max(0.2, float(seconds))
+                r_bps = max(0.0, (r1 - r0) / dt)
+                w_bps = max(0.0, (w1 - w0) / dt)
+
+            tags = match_tags(name, exe, cmdline)
+            beef = compute_beef_score(cpu, rss, r_bps, w_bps)
+            kind = proc_kind(exe, username, pid, svc_map)
+            services = svc_map.get(pid, [])
+
+            rows.append(
+                ProcRow(
+                    pid=pid,
+                    name=name,
+                    exe=exe,
+                    username=username,
+                    cpu_pct=cpu,
+                    rss_bytes=rss,
+                    read_bps=r_bps,
+                    write_bps=w_bps,
+                    beef_score=beef,
+                    kind=kind,
+                    tags=tags,
+                    services=services,
+                    cmdline=cmdline,
+                )
+            )
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
+            continue
+        except psutil.AccessDenied:
+            # still include minimal data
+            try:
+                p = psutil.Process(pid)
+                name = safe_str(p.name())
+            except Exception:
+                name = f"PID {pid}"
+            rows.append(
+                ProcRow(
+                    pid=pid,
+                    name=name,
+                    exe="",
+                    username="",
+                    cpu_pct=0.0,
+                    rss_bytes=0,
+                    read_bps=0.0,
+                    write_bps=0.0,
+                    beef_score=0.0,
+                    kind="Unknown",
+                    tags=[],
+                    services=[],
+                    cmdline="",
+                )
+            )
+        except Exception:
+            continue
+    return rows
+
+
+# --- Rendering ----------------------------------------------------------------
+
+def tag_badge(tags: List[str]) -> Text:
+    if not tags:
+        return Text("")
+    parts: List[Text] = []
+    for t in tags[:3]:
+        icon, _desc = TAG_DEFS.get(t, ("", t))
+        parts.append(Text(f"{icon}{t}", style="cyan"))
+    out = Text(" ")
+    for i, part in enumerate(parts):
+        if i:
+            out.append(" ")
+        out.append(part)
+    return out
+
+
+def service_badge(services: List[ServiceInfo]) -> Text:
+    if not services:
+        return Text("")
+    # show up to 2 display names
+    names = []
+    for s in services[:2]:
+        dn = s.display_name or s.name
+        if dn:
+            names.append(dn)
+    if len(services) > 2:
+        names.append(f"+{len(services) - 2}")
+    txt = ", ".join(names)
+    return Text(txt, style="magenta")
+
+
+def kind_badge(kind: str) -> Text:
+    if kind == "Windows":
+        return Text("Windows", style="dim")
+    if kind == "Service":
+        return Text("Service", style="magenta")
+    if kind == "App":
+        return Text("App", style="cyan")
+    return Text(kind, style="yellow")
+
+
+def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
+    table = Table(
+        title=title,
+        title_style="bold",
+        box=box.SIMPLE_HEAVY,
+        show_lines=False,
+        header_style="bold",
+        row_styles=["", "dim"],
+    )
+    table.add_column("BEEF", justify="right", style="bold")
+    table.add_column("CPU%", justify="right")
+    table.add_column("RAM", justify="right")
+    table.add_column("Read/s", justify="right")
+    table.add_column("Write/s", justify="right")
+    table.add_column("Type", justify="left")
+    table.add_column("Tags", justify="left")
+    table.add_column("Process", justify="left")
+    table.add_column("Service", justify="left")
+    table.add_column("Path", justify="left")
+
+    for r in rows[:limit]:
+        beef_style = "green"
+        if r.beef_score >= 60:
+            beef_style = "bold red"
+        elif r.beef_score >= 25:
+            beef_style = "yellow"
+
+        cpu_txt = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
+        ram_mb = r.rss_bytes / (1024 ** 2)
+        ram_style = "green"
+        if ram_mb >= 2000:
+            ram_style = "bold red"
+        elif ram_mb >= 800:
+            ram_style = "yellow"
+        ram_txt = Text(f"{ram_mb:.0f} MB", style=ram_style)
+
+        read_txt = color_bytes(r.read_bps, thresholds_mb_s=(2.0, 20.0))
+        write_txt = color_bytes(r.write_bps, thresholds_mb_s=(2.0, 20.0))
+
+        table.add_row(
+            Text(f"{r.beef_score:5.1f}", style=beef_style),
+            cpu_txt,
+            ram_txt,
+            read_txt,
+            write_txt,
+            kind_badge(r.kind),
+            tag_badge(r.tags),
+            Text(f"{r.name} [{r.pid}]", style="bold"),
+            service_badge(r.services),
+            Text(short_path(r.exe), style="dim"),
+        )
+    return table
+
+
+def render_rows(
+    rows: List[ProcRow],
+    sort_key: str = "beef",
+    limit: int = 25,
+    fat_only: bool = False,
+    title: str = "",
+) -> None:
+    # Filtering
+    if fat_only:
+        rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
+    # Sorting
+    if sort_key == "cpu":
+        rows.sort(key=lambda r: r.cpu_pct, reverse=True)
+    elif sort_key == "io":
+        rows.sort(key=lambda r: (r.read_bps + r.write_bps), reverse=True)
+    elif sort_key == "mem":
+        rows.sort(key=lambda r: r.rss_bytes, reverse=True)
+    else:
+        rows.sort(key=lambda r: r.beef_score, reverse=True)
+
+    ttl = title or f"{APP_NAME} — Top {sort_key.upper()} (sampled)"
+    table = build_table(rows, title=ttl, limit=limit)
+    console.print(table)
+    console.print(
+        Panel(
+            Text(
+                "Tip: 'Type' = Service means it can run with no taskbar icon.\n"
+                "This version only *shows* what’s running. 'trim' (ending processes) is planned later.",
+                style="dim",
+            ),
+            box=box.SQUARE,
+            title="Notes",
+            title_align="left",
+        )
+    )
+
+
+# --- Baseline snapshot/diff ---------------------------------------------------
+
+def snapshot_to_file(path: Path, include_windows: bool = False) -> Dict[str, Any]:
+    rows = collect_samples(seconds=0.6, include_windows=include_windows, include_services=True)
+    data = {
+        "_meta": {"app": APP_NAME, "version": VERSION, "created_at": _now_ts()},
+        "processes": [
+            {
+                "pid": r.pid,
+                "name": r.name,
+                "exe": r.exe,
+                "username": r.username,
+                "kind": r.kind,
+            }
+            for r in rows
+        ],
+    }
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return data
+
+
+def diff_from_file(path: Path, include_windows: bool = False) -> Dict[str, Any]:
+    before = json.loads(path.read_text(encoding="utf-8"))
+    before_set = set()
+    for p in before.get("processes", []):
+        before_set.add((p.get("name", ""), p.get("exe", "")))
+
+    now_rows = collect_samples(seconds=0.6, include_windows=include_windows, include_services=True)
+    now_set = set((r.name, r.exe) for r in now_rows)
+
+    new = sorted(list(now_set - before_set))
+    gone = sorted(list(before_set - now_set))
+
+    return {
+        "new": [{"name": n, "exe": e} for (n, e) in new],
+        "gone": [{"name": n, "exe": e} for (n, e) in gone],
+        "_meta": {"baseline": str(path), "checked_at": _now_ts()},
+    }
+
+
+# --- Interactive CLI (CLI03) --------------------------------------------------
+
+MENU_ITEMS: List[Tuple[str, str]] = [
+    ("beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
+    ("beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
+    ("beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
+    ("beefy peep mem", "RAM Hog Finder: high memory background apps"),
+    ("beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
+    ("beefy peep watch", "Live Watch: refresh a scoreboard every second"),
+    ("beefy baseline save", "Save a baseline snapshot (for later diff)"),
+    ("beefy baseline diff", "Compare against a baseline snapshot"),
+    ("help", "Show help"),
+    ("quit", "Exit"),
+]
+
+
+
+def print_header() -> None:
+    console.clear()
+    title = Text(f"{APP_NAME}  v{VERSION}", style="bold")
+    subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="dim")
+    panel = Panel(
+        Align.left(Text(BANNER, style="bold cyan")),
+        title=title,
+        subtitle=subtitle,
+        box=box.HEAVY,
+        border_style="cyan",
+    )
+    console.print(panel)
+
+
+def print_menu() -> None:
+    t = Table(box=box.SIMPLE, show_header=True, header_style="bold magenta")
+    t.add_column("Try this command", style="bold")
+    t.add_column("What it does", style="")
+    for cmd, desc in MENU_ITEMS:
+        t.add_row(cmd, desc)
+    console.print(t)
+    console.print(Text("Type a command (or press Enter for the recommended default).", style="dim"))
+
+
+def interactive_loop() -> None:
+    print_header()
+    console.print(
+        Panel(
+            Text(
+                "New user mode: you don’t need flags.\n"
+                "Just type a short command like: beefy peep all\n\n"
+                "Tip: Run Windows Terminal as Administrator for more details.",
+                style="white",
+            ),
+            title="Welcome",
+            title_align="left",
+            box=box.SQUARE,
+        )
+    )
+
+    # Defaults geared for rookies
+    seconds = 1.0
+    limit = 25
+    include_windows = False
+    include_services = True
+    fat_only = True
+
+    while True:
+        print_menu()
+        cmd = Prompt.ask(f"[bold cyan]{APP_NAME}[/bold cyan]", default="beefy peep all").strip().lower()
+        # Allow users to type the same command they would type in the shell (teaches CLI-only usage).
+        for prefix in ("beefy ", "peepbeefy "):
+            if cmd.startswith(prefix):
+                cmd = cmd[len(prefix):].lstrip()
+                break
+
+
+        if cmd in ("q", "quit", "exit"):
+            console.print(Text("Later 👋", style="bold"))
+            return
+
+        if cmd in ("help", "?"):
+            console.print(
+                Panel(
+                    Text(
+                        "Commands you can type:\n"
+                        "- peep all | cpu | io | mem | clutter | watch\n"
+                        "- baseline save <file>\n"
+                        "- baseline diff <file>\n\n"
+                        "This version does NOT end processes.\n"
+                        "It helps you *see* what is hogging CPU/RAM/Disk and which ones are Services.",
+                        style="white",
+                    ),
+                    title="Help",
+                    title_align="left",
+                    box=box.SQUARE,
+                )
+            )
+            continue
+
+        # Settings (kept minimal; rookies shouldn't be spammed)
+        if cmd in ("settings", "config"):
+            seconds = float(Prompt.ask("Sample seconds", default=str(seconds)))
+            limit = int(Prompt.ask("Rows to show", default=str(limit)))
+            include_windows = Confirm.ask("Include Windows system processes?", default=False)
+            fat_only = Confirm.ask("Fat-only mode (recommended)?", default=True)
+            continue
+
+        # Parse baseline commands
+        if cmd.startswith("baseline "):
+            parts = cmd.split()
+            if len(parts) >= 2 and parts[1] == "save":
+                file = Prompt.ask("Baseline file name", default="baseline.json")
+                path = Path(file).expanduser().resolve()
+                snapshot_to_file(path, include_windows=include_windows)
+                console.print(Text(f"Saved baseline to: {path}", style="green"))
+                continue
+            if len(parts) >= 2 and parts[1] == "diff":
+                file = Prompt.ask("Baseline file name", default="baseline.json")
+                path = Path(file).expanduser().resolve()
+                if not path.exists():
+                    console.print(Text(f"Baseline not found: {path}", style="bold red"))
+                    continue
+                d = diff_from_file(path, include_windows=include_windows)
+                # Render diff
+                new = d["new"]
+                gone = d["gone"]
+                console.print(Panel(Text(f"Baseline: {path}", style="dim"), title="Diff", box=box.SQUARE))
+                if new:
+                    console.print(Text("New since baseline:", style="bold yellow"))
+                    for item in new[:30]:
+                        console.print(f"  + {item['name']}  {short_path(item['exe'])}")
+                else:
+                    console.print(Text("No new processes since baseline.", style="green"))
+                if gone:
+                    console.print(Text("\nGone since baseline:", style="bold"))
+                    for item in gone[:15]:
+                        console.print(f"  - {item['name']}  {short_path(item['exe'])}")
+                continue
+
+        # peep commands
+        if cmd.startswith("peep"):
+            parts = cmd.split()
+            mode = parts[1] if len(parts) >= 2 else "all"
+
+            if mode == "watch":
+                watch_seconds = float(Prompt.ask("Sample seconds per refresh", default=str(seconds)))
+                refresh = float(Prompt.ask("Refresh interval (seconds)", default="1.0"))
+                loops = int(Prompt.ask("How many refreshes? (Ctrl+C to exit early)", default="60"))
+                sort_key = "beef"
+                with Live(console=console, refresh_per_second=4) as live:
+                    try:
+                        for i in range(loops):
+                            rows = collect_samples(seconds=watch_seconds, include_windows=include_windows, include_services=include_services)
+                            # fat mode inside watch is very helpful
+                            if fat_only:
+                                rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
+                            rows.sort(key=lambda r: r.beef_score, reverse=True)
+                            table = build_table(rows, title=f"{APP_NAME} Watch — Top BEEF (refresh {i+1}/{loops})", limit=limit)
+                            live.update(table)
+                            time.sleep(max(0.2, refresh))
+                    except KeyboardInterrupt:
+                        pass
+                continue
+
+            # Normal peep modes
+            rows = collect_samples(seconds=seconds, include_windows=include_windows, include_services=include_services)
+
+            if mode == "cpu":
+                render_rows(rows, sort_key="cpu", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — CPU Hog Finder")
+            elif mode == "io":
+                render_rows(rows, sort_key="io", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — Disk Hog Finder")
+            elif mode == "mem":
+                render_rows(rows, sort_key="mem", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — RAM Hog Finder")
+            elif mode == "clutter":
+                clutter = [r for r in rows if r.tags]
+                # Sort by beef so the "cloggy" clutter floats
+                clutter.sort(key=lambda r: r.beef_score, reverse=True)
+                render_rows(clutter, sort_key="beef", limit=limit, fat_only=False, title=f"{APP_NAME} — Gamer Clutter (tagged)")
+            else:
+                render_rows(rows, sort_key="beef", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — Quick Scan (BEEF Score)")
+            continue
+
+        # Unknown input
+        console.print(Text("Unknown command. Type 'help' to see options.", style="bold red"))
+
+
+# --- CLI02 / CLI01 commands ---------------------------------------------------
+
+@peep_app.command("all")
+def peep_all(
+    fat: bool = typer.Option(True, "--fat/--no-fat", help="Show only the 'fat' processes (recommended)."),
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    limit: int = typer.Option(25, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """Quick Scan (combined BEEF score)."""
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    render_rows(rows, sort_key="beef", limit=limit, fat_only=fat, title=f"{APP_NAME} — Quick Scan (BEEF Score)")
+
+
+@peep_app.command("cpu")
+def peep_cpu(
+    fat: bool = typer.Option(True, "--fat/--no-fat", help="Show only the 'fat' processes (recommended)."),
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    limit: int = typer.Option(25, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """CPU Hog Finder."""
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    render_rows(rows, sort_key="cpu", limit=limit, fat_only=fat, title=f"{APP_NAME} — CPU Hog Finder")
+
+
+@peep_app.command("io")
+def peep_io(
+    fat: bool = typer.Option(True, "--fat/--no-fat", help="Show only the 'fat' processes (recommended)."),
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    limit: int = typer.Option(25, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """Disk Hog Finder (stutter risk)."""
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    render_rows(rows, sort_key="io", limit=limit, fat_only=fat, title=f"{APP_NAME} — Disk Hog Finder")
+
+
+@peep_app.command("mem")
+def peep_mem(
+    fat: bool = typer.Option(True, "--fat/--no-fat", help="Show only the 'fat' processes (recommended)."),
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    limit: int = typer.Option(25, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """RAM Hog Finder."""
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    render_rows(rows, sort_key="mem", limit=limit, fat_only=fat, title=f"{APP_NAME} — RAM Hog Finder")
+
+
+@peep_app.command("clutter")
+def peep_clutter(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    limit: int = typer.Option(30, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """Show tagged gamer clutter: RGB / overlays / VR / VPN / etc."""
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    rows = [r for r in rows if r.tags]
+    rows.sort(key=lambda r: r.beef_score, reverse=True)
+    render_rows(rows, sort_key="beef", limit=limit, fat_only=False, title=f"{APP_NAME} — Gamer Clutter (tagged)")
+
+
+@peep_app.command("watch")
+def peep_watch(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window in seconds."),
+    refresh: float = typer.Option(1.0, "--refresh", min=0.2, help="Refresh interval seconds."),
+    loops: int = typer.Option(60, "--loops", min=1, max=3600, help="Number of refreshes."),
+    fat: bool = typer.Option(True, "--fat/--no-fat", help="Fat-only mode (recommended)."),
+    limit: int = typer.Option(25, "--limit", min=5, max=200, help="Rows to show."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map PIDs to Windows services."),
+):
+    """Live watch view (updates table)."""
+    include_windows = deep
+    include_services = services
+    with Live(console=console, refresh_per_second=4) as live:
+        try:
+            for i in range(loops):
+                rows = collect_samples(seconds=seconds, include_windows=include_windows, include_services=include_services)
+                if fat:
+                    rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
+                rows.sort(key=lambda r: r.beef_score, reverse=True)
+                table = build_table(rows, title=f"{APP_NAME} Watch — Top BEEF (refresh {i+1}/{loops})", limit=limit)
+                live.update(table)
+                time.sleep(max(0.2, refresh))
+        except KeyboardInterrupt:
+            pass
+
+
+@baseline_app.command("save")
+def baseline_save(
+    file: Path = typer.Argument(Path("baseline.json"), help="Where to save the baseline snapshot."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+):
+    """Save a baseline snapshot."""
+    path = file.expanduser().resolve()
+    snapshot_to_file(path, include_windows=deep)
+    console.print(Text(f"Saved baseline to: {path}", style="green"))
+
+
+@baseline_app.command("diff")
+def baseline_diff(
+    file: Path = typer.Argument(Path("baseline.json"), help="Baseline snapshot file."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows system processes."),
+    json_out: bool = typer.Option(False, "--json", help="Output diff as JSON."),
+):
+    """Diff current process set against a baseline snapshot."""
+    path = file.expanduser().resolve()
+    if not path.exists():
+        console.print(Text(f"Baseline not found: {path}", style="bold red"))
+        raise typer.Exit(code=2)
+    d = diff_from_file(path, include_windows=deep)
+    if json_out:
+        console.print_json(json.dumps(d))
+        return
+    new = d["new"]
+    gone = d["gone"]
+    console.print(Panel(Text(f"Baseline: {path}", style="dim"), title="Diff", box=box.SQUARE))
+    if new:
+        console.print(Text("New since baseline:", style="bold yellow"))
+        for item in new[:50]:
+            console.print(f"  + {item['name']}  {short_path(item['exe'])}")
+    else:
+        console.print(Text("No new processes since baseline.", style="green"))
+    if gone:
+        console.print(Text("\nGone since baseline:", style="bold"))
+        for item in gone[:25]:
+            console.print(f"  - {item['name']}  {short_path(item['exe'])}")
+
+
+@dev_app.command("dump")
+def dev_dump(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2, help="Sampling window seconds."),
+    deep: bool = typer.Option(False, "--deep", help="Include Windows processes."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map services."),
+    json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON."),
+):
+    """
+    Developer dump: full JSON payload of sampled processes.
+    This exists for power users / debugging / building the future 'trim' feature safely.
+    """
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    payload = {
+        "_meta": {"app": APP_NAME, "version": VERSION, "sample_seconds": seconds, "created_at": _now_ts()},
+        "rows": [asdict(r) for r in rows],
+    }
+    if json_out:
+        console.print_json(json.dumps(payload))
+    else:
+        console.print(payload)
+
+
+
+@dev_app.command("info")
+def dev_info(
+    query: str = typer.Argument(..., help="PID (number) or process name (substring)."),
+    seconds: float = typer.Option(0.6, "--seconds", min=0.2, help="Sampling window seconds."),
+    deep: bool = typer.Option(True, "--deep/--no-deep", help="Include Windows processes (dev view default = yes)."),
+    services: bool = typer.Option(True, "--services/--no-services", help="Map services."),
+):
+    """
+    Developer info: explain a process (path, cmdline, services, live CPU/RAM/IO sample).
+    """
+    q = query.strip()
+    pid: Optional[int] = None
+    if q.isdigit():
+        pid = int(q)
+
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+    matches: List[ProcRow] = []
+    if pid is not None:
+        matches = [r for r in rows if r.pid == pid]
+    else:
+        needle = q.lower()
+        matches = [r for r in rows if needle in r.name.lower()]
+
+    if not matches:
+        console.print(Text(f"No matches for: {query}", style="bold red"))
+        raise typer.Exit(code=1)
+
+    for r in matches[:10]:
+        lines: List[Text] = []
+        lines.append(Text(f"Process: {r.name}  (PID {r.pid})", style="bold"))
+        lines.append(Text(f"Type: {r.kind}", style="cyan"))
+        lines.append(Text(f"User: {r.username}", style="dim"))
+        lines.append(Text(f"Path: {r.exe}", style="dim"))
+        if r.cmdline:
+            lines.append(Text(f"Cmd: {r.cmdline}", style="dim"))
+        if r.tags:
+            tag_txt = ", ".join([f"{TAG_DEFS.get(t, ('', t))[0]}{t}" for t in r.tags])
+            lines.append(Text(f"Tags: {tag_txt}", style="cyan"))
+        if r.services:
+            svc_lines = []
+            for s in r.services[:10]:
+                dn = s.display_name or s.name
+                extra = []
+                if s.start_type:
+                    extra.append(s.start_type)
+                if s.status:
+                    extra.append(s.status)
+                suffix = f" ({', '.join(extra)})" if extra else ""
+                svc_lines.append(f"- {dn}{suffix}")
+            lines.append(Text("Services:\n" + "\n".join(svc_lines), style="magenta"))
+
+        # Metrics
+        cpu = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
+        ram_mb = r.rss_bytes / (1024 ** 2)
+        ram = Text(f"{ram_mb:.0f} MB", style=("bold red" if ram_mb >= 2000 else "yellow" if ram_mb >= 800 else "green"))
+        read = color_bytes(r.read_bps, thresholds_mb_s=(2.0, 20.0))
+        write = color_bytes(r.write_bps, thresholds_mb_s=(2.0, 20.0))
+        beef = Text(f"{r.beef_score:.1f}", style=("bold red" if r.beef_score >= 60 else "yellow" if r.beef_score >= 25 else "green"))
+        metrics = Text.assemble(
+            ("BEEF ", "bold"), beef, ("   CPU ", "bold"), cpu,
+            ("   RAM ", "bold"), ram, ("   Read ", "bold"), read, ("   Write ", "bold"), write
+        )
+
+        body = Text("\n").join(lines)
+        console.print(Panel(body, title="Process Info", subtitle=metrics, box=box.SQUARE, border_style="cyan"))
+
+
+def _dev_top(
+    metric: str,
+    seconds: float,
+    limit: int,
+    deep: bool,
+    services: bool,
+    fat: bool,
+    json_out: bool,
+):
+    rows = collect_samples(seconds=seconds, include_windows=deep, include_services=services)
+
+    if fat:
+        rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
+
+    if metric == "cpu":
+        rows.sort(key=lambda r: r.cpu_pct, reverse=True)
+    elif metric == "io":
+        rows.sort(key=lambda r: (r.read_bps + r.write_bps), reverse=True)
+    elif metric == "mem":
+        rows.sort(key=lambda r: r.rss_bytes, reverse=True)
+    else:
+        rows.sort(key=lambda r: r.beef_score, reverse=True)
+
+    if json_out:
+        payload = {
+            "_meta": {"app": APP_NAME, "version": VERSION, "metric": metric, "seconds": seconds, "created_at": _now_ts()},
+            "rows": [asdict(r) for r in rows[:limit]],
+        }
+        console.print_json(json.dumps(payload))
+        return
+
+    render_rows(rows, sort_key=("beef" if metric == "beef" else metric), limit=limit, fat_only=False, title=f"{APP_NAME} — DEV TOP {metric.upper()}")
+
+
+@dev_top_app.command("beef")
+def dev_top_beef(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2),
+    limit: int = typer.Option(25, "--limit", min=5, max=500),
+    deep: bool = typer.Option(True, "--deep/--no-deep", help="Include Windows processes (dev default = yes)."),
+    services: bool = typer.Option(True, "--services/--no-services"),
+    fat: bool = typer.Option(False, "--fat", help="Filter to obvious hogs only."),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON."),
+):
+    _dev_top("beef", seconds, limit, deep, services, fat, json_out)
+
+
+@dev_top_app.command("cpu")
+def dev_top_cpu(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2),
+    limit: int = typer.Option(25, "--limit", min=5, max=500),
+    deep: bool = typer.Option(True, "--deep/--no-deep", help="Include Windows processes (dev default = yes)."),
+    services: bool = typer.Option(True, "--services/--no-services"),
+    fat: bool = typer.Option(False, "--fat", help="Filter to obvious hogs only."),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON."),
+):
+    _dev_top("cpu", seconds, limit, deep, services, fat, json_out)
+
+
+@dev_top_app.command("io")
+def dev_top_io(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2),
+    limit: int = typer.Option(25, "--limit", min=5, max=500),
+    deep: bool = typer.Option(True, "--deep/--no-deep", help="Include Windows processes (dev default = yes)."),
+    services: bool = typer.Option(True, "--services/--no-services"),
+    fat: bool = typer.Option(False, "--fat", help="Filter to obvious hogs only."),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON."),
+):
+    _dev_top("io", seconds, limit, deep, services, fat, json_out)
+
+
+@dev_top_app.command("mem")
+def dev_top_mem(
+    seconds: float = typer.Option(1.0, "--seconds", min=0.2),
+    limit: int = typer.Option(25, "--limit", min=5, max=500),
+    deep: bool = typer.Option(True, "--deep/--no-deep", help="Include Windows processes (dev default = yes)."),
+    services: bool = typer.Option(True, "--services/--no-services"),
+    fat: bool = typer.Option(False, "--fat", help="Filter to obvious hogs only."),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON."),
+):
+    _dev_top("mem", seconds, limit, deep, services, fat, json_out)
+
+
+
+@app.callback(invoke_without_command=True)
+def _default(ctx: typer.Context):
+    """
+    Default behavior: start the interactive CLI if no subcommand is provided.
+    """
+    if ctx.invoked_subcommand is None:
+        interactive_loop()
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()
