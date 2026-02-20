@@ -42,6 +42,6 @@ Based on your rules, here is how the `peepBeefy` scheme looks when strictly foll
 
 ---
 
-peepBeefy: `TRIM THE FAT, KILL THE PROCESSES`
+peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
 
 ---

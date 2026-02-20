@@ -8,7 +8,7 @@ REM   beefy peep io    -> CLI-only mode
 REM   beefy --help     -> help
 
 set SCRIPT_DIR=%~dp0
-set SCRIPT=%SCRIPT_DIR%peepBeefy.py
+set SCRIPT=%SCRIPT_DIR%main.py
 
 where py >nul 2>nul
 if errorlevel 1 (

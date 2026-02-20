@@ -6,7 +6,7 @@ REM - Opens the interactive CLI with minimal typing.
 REM - Requires Python 3 and the deps: psutil, rich, typer.
 
 set SCRIPT_DIR=%~dp0
-set SCRIPT=%SCRIPT_DIR%peepBeefy.py
+set SCRIPT=%SCRIPT_DIR%main.py
 
 where py >nul 2>nul
 if errorlevel 1 (

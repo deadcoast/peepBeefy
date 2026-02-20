@@ -1250,8 +1250,6 @@ z.write(p, p.relative_to(proj_dir))
 str(zip_path), [str(p.relative_to(proj_dir)) for p in proj_dir.rglob("*")]
 ```
 
-> Always show details
-
 > Analyzed
 Ensuring simplicity and packaging for first-time users
 We’ll deliver a zip file with the peepBeefy/cli.py. I’ve ensured that the CLI won’t run automatically by including a guard clause with if __name__ == "__main__". The user can run beefy after installing via pip. For beginners, I’ll include instructions and a Run_peepBeefy.cmd to simplify execution.
@@ -1270,6 +1268,6 @@ When users run beefy, they can enter commands like peep --fat, which is minimal 
 
 ---
 
-peepBeefy: `TRIM THE FAT, KILL THE PROCESSES`
+peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
 
 ---

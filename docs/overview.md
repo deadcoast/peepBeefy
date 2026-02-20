@@ -196,6 +196,7 @@ The CLI will require beautiful output that is easy to read and understand. This 
 
 ---
 
-peepBeefy: `TRIM THE FAT, KILL THE PROCESSES`
+peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
 
 ---
+-

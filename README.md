@@ -43,6 +43,6 @@ beefy baseline diff    # see what started itself.
 
 ---
 
-peepBeefy: `TRIM THE FAT, KILL THE PROCESSES`
+peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
 
 ---

@@ -8,3 +8,9 @@
    - `beefy dev info <pid>` (or process name)
 
 If you want, paste a screenshot of the **peepBeefy Quick Scan table** (not Task Manager). I’ll tell you which entries are “expected background” vs “worth investigating,” *based on the actual resource rates it reports*.
+
+---
+
+peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
+
+---
