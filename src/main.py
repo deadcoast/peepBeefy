@@ -124,18 +124,18 @@ class ProcRow:
 
 # --- Classification rules -----------------------------------------------------
 
-# Tag icons kept minimal — readable for rookie users.
+# Tag definitions — label + description (no emoji; cp1252-safe).
 TAG_DEFS: Dict[str, Tuple[str, str]] = {
-    "OVERLAY": ("🕶️", "Overlay / hook"),
-    "RGB": ("🌈", "RGB / vendor control"),
-    "VR": ("🥽", "VR runtime"),
-    "VPN": ("🌐", "VPN"),
-    "UPDATER": ("⬆️", "Updater"),
-    "LAUNCHER": ("🚀", "Launcher"),
-    "BROWSER": ("🌍", "Browser"),
-    "MONITOR": ("📈", "Monitoring"),
-    "AUDIO": ("🔊", "Audio stack"),
-    "CAPTURE": ("🎥", "Capture / streaming"),
+    "OVERLAY": ("", "Overlay / hook"),
+    "RGB": ("", "RGB / vendor control"),
+    "VR": ("", "VR runtime"),
+    "VPN": ("", "VPN"),
+    "UPDATER": ("", "Updater"),
+    "LAUNCHER": ("", "Launcher"),
+    "BROWSER": ("", "Browser"),
+    "MONITOR": ("", "Monitoring"),
+    "AUDIO": ("", "Audio stack"),
+    "CAPTURE": ("", "Capture / streaming"),
 }
 
 # Real, non-placeholder patterns (best-effort).
@@ -573,29 +573,83 @@ def kind_badge(kind: str) -> Text:
     return Text(kind, style="peep.metric.warn")
 
 
-def beef_bar(score: float, max_score: float) -> Text:
-    """Render BEEF score as a visual bar with number. Always shows relative weight."""
-    BAR_WIDTH = 8
-    fill = min(BAR_WIDTH, int((score / max(max_score, 1.0)) * BAR_WIDTH))
-    empty = BAR_WIDTH - fill
-
+def _score_style(score: float) -> str:
     if score >= 60:
-        bar_style = "peep.metric.hot"
-    elif score >= 25:
-        bar_style = "peep.metric.warn"
-    elif score >= 5:
-        bar_style = "peep.accent"
-    else:
-        bar_style = "peep.muted"
+        return "peep.metric.hot"
+    if score >= 25:
+        return "peep.metric.warn"
+    if score >= 5:
+        return "peep.accent"
+    return "peep.muted"
 
-    bar = Text()
-    bar.append("\u2588" * fill, style=bar_style)
-    bar.append("\u2591" * empty, style="peep.muted")
-    bar.append(f" {score:.0f}", style=bar_style)
-    return bar
+
+def _metric_text(label: str, value: str, style: str) -> Text:
+    """Render a metric with dim label and colored value — the core visual separation."""
+    t = Text()
+    t.append(label, style="peep.muted")
+    t.append(value, style=style)
+    return t
+
+
+def _build_offender(r: ProcRow, max_beef: float) -> Text:
+    """Build a two-line entry for a top offender process."""
+    BAR_WIDTH = 20
+    fill = min(BAR_WIDTH, int((r.beef_score / max(max_beef, 1.0)) * BAR_WIDTH))
+    empty = BAR_WIDTH - fill
+    style = _score_style(r.beef_score)
+
+    entry = Text()
+    # Line 1: bar + score + name + tag
+    entry.append("  ")
+    entry.append("\u2588" * fill, style=style)
+    entry.append("\u2591" * empty, style="peep.muted")
+    entry.append(f"  {r.beef_score:>5.0f}", style=style)
+    entry.append("    ")
+    entry.append(r.name, style="bold")
+    entry.append(f" ({r.pid})", style="peep.muted")
+    if r.tags:
+        entry.append(f"   {', '.join(r.tags[:2])}", style="peep.tag")
+    elif r.services:
+        svc = r.services[0].display_name or r.services[0].name
+        entry.append(f"   {svc}", style="peep.service")
+
+    # Line 2: metrics with label/value separation
+    indent = " " * (BAR_WIDTH + 10)
+    entry.append(f"\n{indent}")
+
+    cpu_s = "peep.metric.hot" if r.cpu_pct >= 15 else "peep.metric.warn" if r.cpu_pct >= 5 else "peep.metric.ok"
+    entry.append_text(_metric_text("CPU ", f"{r.cpu_pct:.1f}", cpu_s))
+    entry.append("  |  ", style="peep.muted")
+
+    ram_mb = r.rss_bytes / (1024 ** 2)
+    ram_s = "peep.metric.hot" if ram_mb >= 2000 else "peep.metric.warn" if ram_mb >= 800 else "peep.metric.ok"
+    entry.append_text(_metric_text("RAM ", f"{ram_mb:.0f}M", ram_s))
+    entry.append("  |  ", style="peep.muted")
+
+    total_io = r.read_bps + r.write_bps
+    io_mb = total_io / (1024 ** 2)
+    io_s = "peep.metric.hot" if io_mb >= 20 else "peep.metric.warn" if io_mb >= 2 else "peep.metric.ok"
+    entry.append_text(_metric_text("IO ", rate_to_human(total_io), io_s))
+
+    return entry
+
+
+def _build_compact(r: ProcRow) -> Text:
+    """Build a single dim line for an 'also running' process."""
+    line = Text("  ")
+    line.append(r.name, style="dim bold")
+    line.append(f" ({r.pid})", style="peep.muted")
+    ram_mb = r.rss_bytes / (1024 ** 2)
+    line.append(f"   {ram_mb:.0f}M", style="peep.muted")
+    if r.tags:
+        line.append(f"   {', '.join(r.tags[:1])}", style="dim")
+    elif r.kind == "Service":
+        line.append("   Service", style="dim")
+    return line
 
 
 def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
+    """Compact table for watch mode (Live refresh)."""
     display_rows = rows[:limit]
     max_beef = max((r.beef_score for r in display_rows), default=1.0) if display_rows else 1.0
 
@@ -615,22 +669,28 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
     table.add_column("Info", justify="left", no_wrap=True)
 
     for r in display_rows:
+        BAR_W = 8
+        fill = min(BAR_W, int((r.beef_score / max(max_beef, 1.0)) * BAR_W))
+        empty = BAR_W - fill
+        style = _score_style(r.beef_score)
+        bar = Text()
+        bar.append("\u2588" * fill, style=style)
+        bar.append("\u2591" * empty, style="peep.muted")
+        bar.append(f" {r.beef_score:.0f}", style=style)
+
         cpu_txt = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
         ram_mb = r.rss_bytes / (1024 ** 2)
-        ram_style = "peep.metric.ok"
+        ram_s = "peep.metric.ok"
         if ram_mb >= 2000:
-            ram_style = "peep.metric.hot"
+            ram_s = "peep.metric.hot"
         elif ram_mb >= 800:
-            ram_style = "peep.metric.warn"
-        ram_txt = Text(f"{ram_mb:.0f}M", style=ram_style)
-
+            ram_s = "peep.metric.warn"
+        ram_txt = Text(f"{ram_mb:.0f}M", style=ram_s)
         total_io = r.read_bps + r.write_bps
         io_txt = color_bytes(total_io, thresholds_mb_s=(2.0, 20.0))
-
         proc_txt = Text()
         proc_txt.append(r.name, style="bold")
         proc_txt.append(f" ({r.pid})", style="peep.muted")
-
         info_parts: List[str] = []
         if r.tags:
             info_parts.append(", ".join(r.tags[:2]))
@@ -638,15 +698,7 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
             svc = r.services[0].display_name or r.services[0].name
             info_parts.append(svc)
         info_txt = Text(" | ".join(info_parts), style="peep.tag") if info_parts else Text(short_path(r.exe, max_len=30), style="peep.muted")
-
-        table.add_row(
-            beef_bar(r.beef_score, max_beef),
-            cpu_txt,
-            ram_txt,
-            io_txt,
-            proc_txt,
-            info_txt,
-        )
+        table.add_row(bar, cpu_txt, ram_txt, io_txt, proc_txt, info_txt)
     return table
 
 
@@ -657,10 +709,8 @@ def render_rows(
     fat_only: bool = False,
     title: str = "",
 ) -> None:
-    # Filtering
     if fat_only:
         rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
-    # Sorting
     if sort_key == "cpu":
         rows.sort(key=lambda r: r.cpu_pct, reverse=True)
     elif sort_key == "io":
@@ -670,13 +720,56 @@ def render_rows(
     else:
         rows.sort(key=lambda r: r.beef_score, reverse=True)
 
+    display = rows[:limit]
+    if not display:
+        _error("No processes matched the filter.")
+        return
+
     ttl = title or f"{APP_NAME} -- Top {sort_key.upper()} (sampled)"
+    max_beef = max((r.beef_score for r in display), default=1.0)
+    hot_count = sum(1 for r in display if r.beef_score >= 25)
+
+    # --- Header: double-line box ---
+    header = Text()
+    header.append(f"  {ttl}\n", style="peep.heading")
+    header.append(f"  {len(display)} processes", style="peep.muted")
+    if hot_count:
+        header.append("  |  ", style="peep.muted")
+        header.append(f"{hot_count} heavy", style="peep.metric.warn")
     console.print()
-    console.print(Rule(ttl, style="peep.accent"))
-    table = build_table(rows, title="", limit=limit)
-    console.print(table)
-    count = len(rows)
-    console.print(Text(f"  {count} processes  |  Service = can run with no taskbar icon  |  view-only mode", style="peep.muted"))
+    console.print(Panel(header, box=box.DOUBLE, border_style="peep.accent"))
+
+    # --- Split: top offenders (featured) vs also-running (compact) ---
+    TOP_N = min(5, len(display))
+    top = display[:TOP_N]
+    rest = display[TOP_N:]
+
+    # --- Top Offenders panel ---
+    parts: List[Text] = []
+    for r in top:
+        parts.append(_build_offender(r, max_beef))
+    body = Text("\n\n").join(parts)
+    console.print(Panel(
+        body,
+        title="[peep.heading]Top Offenders[/peep.heading]",
+        box=box.ROUNDED,
+        border_style="peep.accent",
+        padding=(1, 1),
+    ))
+
+    # --- Also Running panel (compact, dim) ---
+    if rest:
+        compact_lines = [_build_compact(r) for r in rest]
+        compact_body = Text("\n").join(compact_lines)
+        console.print(Panel(
+            compact_body,
+            title="[peep.muted]Also Running[/peep.muted]",
+            box=box.ROUNDED,
+            border_style="dim",
+            padding=(0, 1),
+        ))
+
+    console.print(Text("  view-only mode  |  Service = can run with no taskbar icon", style="peep.muted"))
     console.print()
 
 

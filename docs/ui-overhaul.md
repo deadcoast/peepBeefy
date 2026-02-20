@@ -59,3 +59,9 @@ details. All changes are display-only in the single file src/main.py.
 - beefy dev info chrome — should show structured detail grid
 - Interactive mode (double-click bat) — menu should have icons, spinner should appear
 - Watch mode (beefy peep watch --loops 3) — should NOT have spinner (unchanged)
+
+---
+
+peepBeefy: `FATBOI_PROCESSES_DESTROYER_5000`
+
+---

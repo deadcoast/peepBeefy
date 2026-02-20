@@ -39,7 +39,7 @@ CLI03 is a menu-driven REPL that teaches CLI02 commands by displaying them as se
 
 ### Typer app hierarchy
 
-```
+```plaintext
 app (main)
 ├── peep_app ("peep") — peep all | cpu | io | mem | clutter | watch
 ├── baseline_app ("baseline") — baseline save | diff

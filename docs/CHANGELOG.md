@@ -321,6 +321,6 @@ python .\gameprep.py scan --sample 1.0 --services
 
 ---
 
-peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
+peepBeefy: `FATBOI_PROCESSES_DESTROYER_5000`
 
 ---

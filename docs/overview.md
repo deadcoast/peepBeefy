@@ -196,6 +196,6 @@ The CLI will require beautiful output that is easy to read and understand. This 
 
 ---
 
-peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
+peepBeefy: `FATBOI_PROCESSES_DESTROYER_5000`
 
 ---

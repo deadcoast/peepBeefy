@@ -64,8 +64,6 @@ version_authority: true
 
 ---
 
----
-
-peepBeefy: `DESTROYER_OF_FAT-PROCESSES_5000`
+peepBeefy: `FATBOI_PROCESSES_DESTROYER_5000`
 
 ---
