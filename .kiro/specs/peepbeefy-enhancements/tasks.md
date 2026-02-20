@@ -9,17 +9,17 @@ The implementation will use **Python** with the Rich library for terminal render
 ## Tasks
 
 - [ ] 1. Phase 1: Core Infrastructure - Banner System Foundation
-  - [x] 1.1 Create banner.py module with data models
+  - [ ] 1.1 Create banner.py module with data models
     - Implement `BannerMetadata` dataclass with category, name, author, description, dimensions, and animation_compatible fields
-    - Implement `Banner` dataclass with metadata  linandes, including width and height properties
+    - Implement `Banner` dataclass with metadata and lines, including width and height properties
     - Add type hints and docstrings for all classes
     - _Requirements: 1.1, 1.3, 4.1, 9.1_
   
-  - [x] 1.2 Write property test for Banner data model
+  - [ ]* 1.2 Write property test for Banner data model
     - **Property 3: Banner Parsing Preserves Content**
     - **Validates: Requirements 1.5, 4.2, 4.5**
   
-  - [x] 1.3 Implement BannerDatabase class with ASCII parser
+  - [ ] 1.3 Implement BannerDatabase class with ASCII parser
     - Create `BannerDatabase` class with `__init__` accepting assets_dir Path
     - Implement state machine parser for ASCII database format (INITIAL → DELIMITER → DEFINITIONS → HEADER → CONTENT states)
     - Parse category:name headers and extract banner content lines
@@ -28,42 +28,42 @@ The implementation will use **Python** with the Rich library for terminal render
     - Return Dict[str, List[Banner]] mapping categories to banner lists
     - _Requirements: 1.1, 1.3, 4.1, 4.2, 4.5_
   
-  - [x] 1.4 Write property tests for BannerDatabase parser
+  - [ ]* 1.4 Write property tests for BannerDatabase parser
     - **Property 2: Banner Category Grouping**
     - **Property 38: Parsing Error Continuation**
     - **Validates: Requirements 1.3, 4.3**
   
-  - [~] 1.5 Implement banner selection methods in BannerDatabase
+  - [ ] 1.5 Implement banner selection methods in BannerDatabase
     - Implement `get_banner()` method with optional category and name parameters
     - Implement `get_random_banner()` with optional category filtering
     - Implement `list_categories()` to return available categories
     - Add hardcoded fallback banner for error recovery
     - _Requirements: 1.2, 1.4, 10.1, 10.2_
   
-  - [~] 1.6 Write property test for random banner selection
+  - [ ]* 1.6 Write property test for random banner selection
     - **Property 1: Banner Random Selection Distribution**
     - **Validates: Requirements 1.2, 1.4**
   
-  - [~] 1.7 Add banner metadata parsing support
+  - [ ] 1.7 Add banner metadata parsing support
     - Parse metadata comments (lines starting with "# key: value") after banner headers
     - Extract author, description, animation_compatible, flame_lines fields
     - Use banner name as default description if metadata missing
     - Handle unknown metadata keys gracefully (forward compatibility)
     - _Requirements: 9.1, 9.2, 9.5_
   
-  - [~] 1.8 Write property tests for banner metadata
+  - [ ]* 1.8 Write property tests for banner metadata
     - **Property 19: Banner Metadata Parsing**
     - **Property 20: Banner Metadata Default Fallback**
     - **Validates: Requirements 9.1, 9.2, 9.5**
 
 - [ ] 2. Phase 1: Core Infrastructure - Configuration System
-  - [~] 2.1 Create config.py module with configuration data models
+  - [ ] 2.1 Create config.py module with configuration data models
     - Implement `BannerConfig` dataclass with mode, selected_banner, selected_categories, animation settings
     - Implement `AppConfig` dataclass with version, first_run_complete, theme_variant, banner, user_preferences
     - Add default values matching design specification
     - _Requirements: 2.1, 2.2, 2.3, 6.7_
   
-  - [~] 2.2 Implement ConfigManager class with JSON persistence
+  - [ ] 2.2 Implement ConfigManager class with JSON persistence
     - Create `ConfigManager` class with CONFIG_DIR and CONFIG_FILE class variables
     - Implement `load()` method to read JSON config from disk
     - Implement `save()` method with atomic write (temp file + rename)
@@ -71,13 +71,13 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle FileNotFoundError by returning default AppConfig
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
   
-  - [~] 2.3 Write property tests for configuration persistence
+  - [ ]* 2.3 Write property tests for configuration persistence
     - **Property 5: Configuration Round-Trip Preservation**
     - **Property 6: Configuration Directory Creation**
     - **Property 7: Configuration JSON Validity**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 3.6, 6.2, 6.3, 6.7, 7.5, 11.1**
   
-  - [~] 2.4 Add configuration validation and error handling
+  - [ ] 2.4 Add configuration validation and error handling
     - Implement schema validation in `load()` method
     - Validate animation_duration range (0.5-10.0)
     - Validate animation_fps range (4-30)
@@ -86,24 +86,24 @@ The implementation will use **Python** with the Rich library for terminal render
     - Backup corrupted config files before creating fresh config
     - _Requirements: 6.4, 6.5, 10.6, 10.7_
   
-  - [~] 2.5 Write property tests for configuration validation
+  - [ ]* 2.5 Write property tests for configuration validation
     - **Property 8: Configuration Schema Validation**
     - **Property 26: Corrupted Config Recovery**
     - **Validates: Requirements 6.4, 10.6, 10.7**
   
-  - [~] 2.6 Implement configuration migration system
+  - [ ] 2.6 Implement configuration migration system
     - Implement `migrate()` method with version chain support
     - Add `is_first_run()` method to detect missing config
     - Create migration function template for future schema changes
     - Log migration operations at INFO level
     - _Requirements: 6.6, 12.1, 14.3_
   
-  - [~] 2.7 Write property test for configuration migration
+  - [ ]* 2.7 Write property test for configuration migration
     - **Property 9: Configuration Version Migration**
     - **Validates: Requirements 6.6**
 
 - [ ] 3. Phase 1: Core Infrastructure - Theme System
-  - [~] 3.1 Create themes.py module with theme data models
+  - [ ] 3.1 Create themes.py module with theme data models
     - Implement `ColorPalette` dataclass with primary, highlight, success, error, warning, dim, text colors
     - Implement `Theme` class with name, palette, and styling methods
     - Implement `get_box_style()` returning box.DOUBLE
@@ -111,7 +111,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `style_command()` and `style_description()` methods
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
   
-  - [~] 3.2 Implement ThemeRegistry with predefined themes
+  - [ ] 3.2 Implement ThemeRegistry with predefined themes
     - Create `ThemeRegistry` class with THEMES class variable
     - Define CRT_Cyan theme (default) with cyan/white palette
     - Define Amber_Terminal theme with amber/orange palette
@@ -121,12 +121,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `list_themes()` class method
     - _Requirements: 7.2, 7.6, 7.7_
   
-  - [~] 3.3 Write property tests for theme system
+  - [ ]* 3.3 Write property tests for theme system
     - **Property 10: Theme Box Style Consistency**
     - **Property 11: Theme Color Consistency**
     - **Validates: Requirements 7.3, 7.4**
   
-  - [~] 3.4 Implement terminal capability detection
+  - [ ] 3.4 Implement terminal capability detection
     - Create `TerminalCapabilities` class with static methods
     - Implement `supports_rgb()` checking COLORTERM environment variable
     - Implement `supports_256_color()` checking terminal type
@@ -134,7 +134,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `get_fallback_palette()` for ANSI color fallbacks
     - _Requirements: 15.1, 15.2, 15.3_
   
-  - [~] 3.5 Write property test for terminal color fallback
+  - [ ]* 3.5 Write property test for terminal color fallback
     - **Property 35: Terminal Color Capability Fallback**
     - **Validates: Requirements 15.2**
 
