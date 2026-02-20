@@ -9,17 +9,17 @@ The implementation will use **Python** with the Rich library for terminal render
 ## Tasks
 
 - [ ] 1. Phase 1: Core Infrastructure - Banner System Foundation
-  - [-] 1.1 Create banner.py module with data models
+  - [x] 1.1 Create banner.py module with data models
     - Implement `BannerMetadata` dataclass with category, name, author, description, dimensions, and animation_compatible fields
-    - Implement `Banner` dataclass with metadata and lines, including width and height properties
+    - Implement `Banner` dataclass with metadata  linandes, including width and height properties
     - Add type hints and docstrings for all classes
     - _Requirements: 1.1, 1.3, 4.1, 9.1_
   
-  - [~] 1.2 Write property test for Banner data model
+  - [x] 1.2 Write property test for Banner data model
     - **Property 3: Banner Parsing Preserves Content**
     - **Validates: Requirements 1.5, 4.2, 4.5**
   
-  - [~] 1.3 Implement BannerDatabase class with ASCII parser
+  - [x] 1.3 Implement BannerDatabase class with ASCII parser
     - Create `BannerDatabase` class with `__init__` accepting assets_dir Path
     - Implement state machine parser for ASCII database format (INITIAL → DELIMITER → DEFINITIONS → HEADER → CONTENT states)
     - Parse category:name headers and extract banner content lines
@@ -28,7 +28,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Return Dict[str, List[Banner]] mapping categories to banner lists
     - _Requirements: 1.1, 1.3, 4.1, 4.2, 4.5_
   
-  - [~] 1.4 Write property tests for BannerDatabase parser
+  - [x] 1.4 Write property tests for BannerDatabase parser
     - **Property 2: Banner Category Grouping**
     - **Property 38: Parsing Error Continuation**
     - **Validates: Requirements 1.3, 4.3**
