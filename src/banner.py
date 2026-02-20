@@ -9,6 +9,10 @@ from typing import Optional, Tuple, List, Dict
 from pathlib import Path
 from enum import Enum, auto
 import logging
+from rich.panel import Panel
+from rich.console import Console
+from rich.text import Text
+from rich.style import Style
 
 logger = logging.getLogger(__name__)
 
@@ -448,3 +452,207 @@ class BannerDatabase:
         )
         
         return Banner(metadata=metadata, lines=fallback_lines)
+
+
+
+class BannerRenderer:
+    """Renders banners with theme styling.
+    
+    Provides methods for rendering ASCII art banners with theme colors,
+    terminal size validation, and fallback handling.
+    
+    Attributes:
+        _theme: Theme instance for color styling
+    """
+    
+    def __init__(self, theme):
+        """Initialize the BannerRenderer with a theme.
+        
+        Args:
+            theme: Theme instance from themes.py for color styling
+        """
+        self._theme = theme
+    
+    def render_static(self, banner: Banner, console: Console) -> Panel:
+        """Render a static banner with theme colors.
+        
+        Creates a Rich Panel containing the banner ASCII art with theme
+        colors applied. Uses DOUBLE box borders from the theme.
+        
+        Args:
+            banner: Banner object to render
+            console: Rich Console instance for rendering
+        
+        Returns:
+            Rich Panel object with styled banner content
+        """
+        # Handle empty banners gracefully
+        if not banner.lines:
+            logger.warning("Attempted to render empty banner")
+            content = Text("peepBeefy", style=Style(color=self._theme.palette.highlight, bold=True))
+        else:
+            # Apply theme colors to banner text
+            content = Text()
+            for i, line in enumerate(banner.lines):
+                if i > 0:
+                    content.append("\n")
+                # Apply primary color to banner content
+                content.append(line, style=Style(color=self._theme.palette.primary))
+        
+        # Create panel with DOUBLE box borders and theme colors
+        panel = Panel(
+            content,
+            box=self._theme.get_box_style(),
+            border_style=self._theme.get_border_style(),
+            padding=(0, 1),
+        )
+        
+        return panel
+    
+    def validate_terminal_size(self, banner: Banner, console: Console) -> bool:
+        """Check if banner fits in current terminal dimensions.
+        
+        Validates that the banner width and height (plus panel padding/borders)
+        will fit within the current terminal size.
+        
+        Args:
+            banner: Banner object to validate
+            console: Rich Console instance for terminal size
+        
+        Returns:
+            True if banner fits, False otherwise
+        """
+        term_width, term_height = console.size
+        
+        # Account for panel borders and padding (4 chars width, 2 lines height)
+        required_width = banner.width + 4
+        required_height = banner.height + 2
+        
+        fits = required_width <= term_width and required_height <= term_height
+        
+        if not fits:
+            logger.debug(
+                f"Banner size check: {required_width}x{required_height} "
+                f"vs terminal {term_width}x{term_height} = {fits}"
+            )
+        
+        return fits
+    
+    def get_fallback_banner(self) -> Banner:
+        """Return hardcoded default banner for error recovery.
+        
+        Provides a simple fallback banner that always works when banner
+        selection or loading fails.
+        
+        Returns:
+            A minimal fallback Banner object
+        """
+        fallback_lines = [
+            "                          _______              ___       ",
+            " .-----.-----.-----.-----|   _   .-----.-----.'  _.--.--.  ",
+            " |  _  |  -__|  -__|  _  |.  1   |  -__|  -__|   _|  |  |  ",
+            " |   __|_____|_____|   __|.  _   |_____|_____|__| |___  |  ",
+            " |__|              |__|  |:  1    \\               |_____|  ",
+            "                         |::.. .  /                        ",
+            "                         `-------'                         "
+        ]
+        
+        metadata = BannerMetadata(
+            category="FALLBACK",
+            name="DEFAULT",
+            description="Default fallback banner",
+            dimensions=(59, 7),
+            animation_compatible=True
+        )
+        
+        return Banner(metadata=metadata, lines=fallback_lines)
+    
+    def select_banner_with_adaptation(
+        self,
+        banner_db: BannerDatabase,
+        console: Console,
+        config
+    ) -> Banner:
+        """Select banner with terminal size adaptation and fallback chain.
+        
+        Implements the fallback chain: selected → category → random → fallback
+        Filters banners by terminal size to ensure they fit.
+        
+        Args:
+            banner_db: BannerDatabase instance to select from
+            console: Rich Console instance for terminal size
+            config: Configuration object with banner preferences
+        
+        Returns:
+            Banner object that fits in the terminal
+        """
+        import random
+        
+        # Get terminal dimensions
+        term_width, term_height = console.size
+        
+        # Step 1: Try to get the selected banner (if mode is "fixed")
+        if config.banner.mode == "fixed" and config.banner.selected_banner:
+            try:
+                category, name = config.banner.selected_banner.split(":", 1)
+                banner = banner_db.get_banner(category=category, name=name)
+                
+                if self.validate_terminal_size(banner, console):
+                    logger.info(f"Selected fixed banner: {config.banner.selected_banner}")
+                    return banner
+                else:
+                    logger.warning(
+                        f"Fixed banner {config.banner.selected_banner} doesn't fit "
+                        f"({banner.width}x{banner.height} vs {term_width}x{term_height}), "
+                        "trying alternatives"
+                    )
+            except Exception as e:
+                logger.error(f"Failed to load fixed banner: {e}")
+        
+        # Step 2: Try to get random banner from selected categories
+        if config.banner.mode in ("category", "random"):
+            categories = config.banner.selected_categories if config.banner.mode == "category" else None
+            
+            # Get all banners from the specified categories (or all categories)
+            all_banners = []
+            banner_dict = banner_db.load_banners()
+            
+            if categories:
+                for cat in categories:
+                    if cat in banner_dict:
+                        all_banners.extend(banner_dict[cat])
+            else:
+                for banners in banner_dict.values():
+                    all_banners.extend(banners)
+            
+            # Filter by terminal size
+            fitting_banners = [
+                b for b in all_banners
+                if self.validate_terminal_size(b, console)
+            ]
+            
+            if fitting_banners:
+                selected = random.choice(fitting_banners)
+                logger.info(
+                    f"Selected random banner: {selected.metadata.category}:{selected.metadata.name} "
+                    f"({selected.width}x{selected.height})"
+                )
+                return selected
+            else:
+                logger.warning(
+                    f"No banners fit in terminal {term_width}x{term_height}, "
+                    "using fallback"
+                )
+        
+        # Step 3: Fallback to hardcoded banner
+        fallback = self.get_fallback_banner()
+        
+        # Check if even the fallback fits
+        if not self.validate_terminal_size(fallback, console):
+            logger.warning(
+                f"Terminal too small ({term_width}x{term_height}) even for fallback banner, "
+                "will render anyway"
+            )
+        
+        logger.info("Using fallback banner")
+        return fallback

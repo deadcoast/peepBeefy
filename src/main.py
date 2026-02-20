@@ -36,6 +36,11 @@ from rich.text import Text
 from rich.theme import Theme
 from rich.traceback import install as rich_traceback_install
 
+# Import banner system modules
+from banner import BannerDatabase, BannerRenderer
+from config import ConfigManager
+from themes import ThemeRegistry
+
 # --- Rich / Typer setup -------------------------------------------------------
 
 rich_traceback_install(show_locals=False, suppress=[typer, psutil])
@@ -862,17 +867,68 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
 
 
 def print_header() -> None:
+    """Display the peepBeefy banner using the banner system.
+    
+    Loads configuration, initializes the banner database, selects a banner
+    based on user preferences, and renders it with the configured theme.
+    Falls back gracefully to the hardcoded BANNER if anything fails.
+    """
     console.clear()
-    title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
-    subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
-    panel = Panel(
-        Align.left(Text(BANNER, style="peep.accent.lite")),
-        title=title,
-        subtitle=subtitle,
-        box=box.HEAVY,
-        border_style="peep.accent",
-    )
-    console.print(panel)
+    
+    # Try to load banner system with graceful fallback
+    try:
+        # Load configuration
+        config_manager = ConfigManager()
+        config = config_manager.load()
+        
+        # Get theme
+        theme = ThemeRegistry.get_theme(config.theme_variant)
+        
+        # Initialize banner database with assets directory
+        assets_dir = Path(__file__).parent.parent / ".assets"
+        banner_db = BannerDatabase(assets_dir)
+        
+        # Initialize banner renderer
+        renderer = BannerRenderer(theme)
+        
+        # Select banner with terminal size adaptation
+        banner = renderer.select_banner_with_adaptation(banner_db, console, config)
+        
+        # Render the banner
+        panel = renderer.render_static(banner, console)
+        
+        # Add title and subtitle
+        title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
+        subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
+        
+        # Create a new panel with the banner content but with title and subtitle
+        final_panel = Panel(
+            panel.renderable,
+            title=title,
+            subtitle=subtitle,
+            box=box.HEAVY,
+            border_style="peep.accent",
+        )
+        
+        console.print(final_panel)
+        
+    except Exception as e:
+        # Fallback to original hardcoded banner if anything fails
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to load banner system: {e}", exc_info=True)
+        
+        # Use original hardcoded banner as fallback
+        title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
+        subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
+        panel = Panel(
+            Align.left(Text(BANNER, style="peep.accent.lite")),
+            title=title,
+            subtitle=subtitle,
+            box=box.HEAVY,
+            border_style="peep.accent",
+        )
+        console.print(panel)
 
 
 def print_menu() -> None:

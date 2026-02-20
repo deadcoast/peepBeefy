@@ -1701,3 +1701,495 @@ def test_banner_metadata_animation_compatible_parsing(
         banner = parsed_banners[category][0]
         assert banner.metadata.animation_compatible == expected_bool, \
             f"animation_compatible should be {expected_bool} for value '{anim_value}'"
+
+
+
+# **Validates: Requirements 10.4**
+@given(
+    category=category_strategy,
+    name=name_strategy,
+    banner_width=st.integers(min_value=10, max_value=200),
+    banner_height=st.integers(min_value=5, max_value=100),
+    terminal_width=st.integers(min_value=20, max_value=250),
+    terminal_height=st.integers(min_value=10, max_value=120)
+)
+@pytest.mark.property_test
+def test_banner_dimension_validation(
+    category: str,
+    name: str,
+    banner_width: int,
+    banner_height: int,
+    terminal_width: int,
+    terminal_height: int
+):
+    """Property 24: Banner Dimension Validation
+    
+    For any banner and terminal size, the validation function should correctly
+    identify whether the banner fits within the terminal dimensions.
+    
+    This test verifies that:
+    1. Validation correctly identifies banners that fit
+    2. Validation correctly identifies banners that don't fit
+    3. Validation accounts for panel borders and padding (4 chars width, 2 lines height)
+    4. Edge cases (exact fit) are handled correctly
+    """
+    from src.banner import Banner, BannerMetadata, BannerRenderer
+    from src.themes import ThemeRegistry
+    from rich.console import Console
+    from unittest.mock import Mock
+    
+    # Arrange: Create a banner with specified dimensions
+    # Create lines that match the specified width and height
+    lines = ["X" * banner_width for _ in range(banner_height)]
+    
+    metadata = BannerMetadata(category=category, name=name)
+    banner = Banner(metadata=metadata, lines=lines)
+    
+    # Verify banner dimensions match our specification
+    assert banner.width == banner_width, "Banner width should match specification"
+    assert banner.height == banner_height, "Banner height should match specification"
+    
+    # Create a mock console with specified terminal size
+    console = Mock(spec=Console)
+    console.size = (terminal_width, terminal_height)
+    
+    # Create renderer with default theme
+    theme = ThemeRegistry.get_theme("CRT_Cyan")
+    renderer = BannerRenderer(theme)
+    
+    # Act: Validate terminal size
+    fits = renderer.validate_terminal_size(banner, console)
+    
+    # Calculate expected result
+    # Panel adds 4 chars width (2 for borders, 2 for padding) and 2 lines height (borders)
+    required_width = banner_width + 4
+    required_height = banner_height + 2
+    
+    expected_fits = (required_width <= terminal_width) and (required_height <= terminal_height)
+    
+    # Assert: Validation result matches expected
+    assert fits == expected_fits, \
+        f"Banner {banner_width}x{banner_height} in terminal {terminal_width}x{terminal_height} " \
+        f"(requires {required_width}x{required_height}): expected {expected_fits}, got {fits}"
+    
+    # Assert: Specific cases
+    if required_width > terminal_width or required_height > terminal_height:
+        assert not fits, "Banner should not fit if it exceeds terminal dimensions"
+    
+    if required_width <= terminal_width and required_height <= terminal_height:
+        assert fits, "Banner should fit if it's within terminal dimensions"
+
+
+@given(
+    category=category_strategy,
+    name=name_strategy,
+    # Generate banners that exactly match terminal size (edge case)
+    terminal_width=st.integers(min_value=30, max_value=150),
+    terminal_height=st.integers(min_value=15, max_value=80)
+)
+@pytest.mark.property_test
+def test_banner_dimension_validation_exact_fit(
+    category: str,
+    name: str,
+    terminal_width: int,
+    terminal_height: int
+):
+    """Property 24 (Edge Case): Banner validation handles exact fit correctly.
+    
+    For banners that exactly match the terminal size (accounting for borders),
+    validation should return True.
+    """
+    from src.banner import Banner, BannerMetadata, BannerRenderer
+    from src.themes import ThemeRegistry
+    from rich.console import Console
+    from unittest.mock import Mock
+    
+    # Arrange: Create a banner that exactly fits (accounting for panel overhead)
+    banner_width = terminal_width - 4  # Account for borders and padding
+    banner_height = terminal_height - 2  # Account for borders
+    
+    lines = ["X" * banner_width for _ in range(banner_height)]
+    
+    metadata = BannerMetadata(category=category, name=name)
+    banner = Banner(metadata=metadata, lines=lines)
+    
+    # Create mock console
+    console = Mock(spec=Console)
+    console.size = (terminal_width, terminal_height)
+    
+    # Create renderer
+    theme = ThemeRegistry.get_theme("CRT_Cyan")
+    renderer = BannerRenderer(theme)
+    
+    # Act: Validate
+    fits = renderer.validate_terminal_size(banner, console)
+    
+    # Assert: Exact fit should return True
+    assert fits, \
+        f"Banner {banner_width}x{banner_height} should exactly fit in terminal {terminal_width}x{terminal_height}"
+
+
+@given(
+    category=category_strategy,
+    name=name_strategy,
+    # Generate banners that are 1 char/line too large (edge case)
+    terminal_width=st.integers(min_value=30, max_value=150),
+    terminal_height=st.integers(min_value=15, max_value=80)
+)
+@pytest.mark.property_test
+def test_banner_dimension_validation_one_too_large(
+    category: str,
+    name: str,
+    terminal_width: int,
+    terminal_height: int
+):
+    """Property 24 (Edge Case): Banner validation handles "just too large" correctly.
+    
+    For banners that are exactly 1 character or 1 line too large, validation
+    should return False.
+    """
+    from src.banner import Banner, BannerMetadata, BannerRenderer
+    from src.themes import ThemeRegistry
+    from rich.console import Console
+    from unittest.mock import Mock
+    
+    # Test 1: Banner is 1 char too wide
+    banner_width = terminal_width - 3  # One char too wide (needs -4)
+    banner_height = terminal_height - 2
+    
+    lines = ["X" * banner_width for _ in range(banner_height)]
+    metadata = BannerMetadata(category=category, name=name)
+    banner = Banner(metadata=metadata, lines=lines)
+    
+    console = Mock(spec=Console)
+    console.size = (terminal_width, terminal_height)
+    
+    theme = ThemeRegistry.get_theme("CRT_Cyan")
+    renderer = BannerRenderer(theme)
+    
+    fits = renderer.validate_terminal_size(banner, console)
+    
+    assert not fits, \
+        f"Banner {banner_width}x{banner_height} should not fit in terminal {terminal_width}x{terminal_height} (1 char too wide)"
+    
+    # Test 2: Banner is 1 line too tall
+    banner_width = terminal_width - 4
+    banner_height = terminal_height - 1  # One line too tall (needs -2)
+    
+    lines = ["X" * banner_width for _ in range(banner_height)]
+    metadata = BannerMetadata(category=category, name=name)
+    banner = Banner(metadata=metadata, lines=lines)
+    
+    fits = renderer.validate_terminal_size(banner, console)
+    
+    assert not fits, \
+        f"Banner {banner_width}x{banner_height} should not fit in terminal {terminal_width}x{terminal_height} (1 line too tall)"
+
+
+
+# **Validates: Requirements 10.2**
+@given(
+    # Generate various error scenarios
+    error_scenario=st.sampled_from([
+        "missing_file",
+        "empty_database",
+        "invalid_banner_id",
+        "corrupted_data"
+    ])
+)
+@pytest.mark.property_test
+def test_banner_load_error_recovery(error_scenario: str):
+    """Property 22: Banner Load Error Recovery
+    
+    For any banner load operation that fails (file not found, parse error,
+    invalid format), the system should return a valid fallback banner without
+    crashing.
+    
+    This test verifies that:
+    1. Missing files don't crash the system
+    2. Empty databases return fallback banner
+    3. Invalid banner IDs return fallback banner
+    4. System always returns a valid Banner object
+    5. Fallback banner is always renderable
+    """
+    from src.banner import BannerDatabase, BannerRenderer
+    from src.themes import ThemeRegistry
+    from pathlib import Path
+    import tempfile
+    
+    # Arrange: Create error scenarios
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        
+        if error_scenario == "missing_file":
+            # Don't create any file
+            pass
+        
+        elif error_scenario == "empty_database":
+            # Create empty file
+            ascii_file = tmp_path / "ASCII-Full-Logo.txt"
+            ascii_file.write_text("", encoding='utf-8')
+        
+        elif error_scenario == "invalid_banner_id":
+            # Create valid database but request invalid banner
+            ascii_file = tmp_path / "ASCII-Full-Logo.txt"
+            content = """---
+DEFINITIONS
+-----------
+# TEST: "Test category"
+
+---
+TEST:VALID
+----------
+Line 1
+Line 2
+---
+"""
+            ascii_file.write_text(content, encoding='utf-8')
+        
+        elif error_scenario == "corrupted_data":
+            # Create file with corrupted content
+            ascii_file = tmp_path / "ASCII-Full-Logo.txt"
+            ascii_file.write_text("This is not valid ASCII database format\n", encoding='utf-8')
+        
+        # Act: Try to load banner (should not crash)
+        db = BannerDatabase(tmp_path)
+        
+        if error_scenario == "invalid_banner_id":
+            # Request a banner that doesn't exist
+            banner = db.get_banner(category="NONEXISTENT", name="INVALID")
+        else:
+            # Try to get any banner
+            banner = db.get_random_banner()
+        
+        # Assert: System did not crash
+        assert banner is not None, "System should return a banner even on error"
+        
+        # Assert: Banner is valid
+        assert isinstance(banner.lines, list), "Banner should have lines list"
+        assert len(banner.lines) > 0, "Banner should have at least one line"
+        assert banner.metadata is not None, "Banner should have metadata"
+        assert banner.metadata.category is not None, "Banner should have category"
+        assert banner.metadata.name is not None, "Banner should have name"
+        
+        # Assert: Banner dimensions are valid
+        assert banner.width >= 0, "Banner width should be non-negative"
+        assert banner.height >= 0, "Banner height should be non-negative"
+        assert banner.height == len(banner.lines), "Banner height should match line count"
+        
+        # Assert: Banner is renderable
+        theme = ThemeRegistry.get_theme("CRT_Cyan")
+        renderer = BannerRenderer(theme)
+        
+        from rich.console import Console
+        console = Console()
+        
+        # Should not crash when rendering
+        panel = renderer.render_static(banner, console)
+        assert panel is not None, "Fallback banner should be renderable"
+
+
+@given(
+    category=category_strategy,
+    name=name_strategy,
+    # Generate banners that are too large for small terminals
+    banner_width=st.integers(min_value=100, max_value=200),
+    banner_height=st.integers(min_value=50, max_value=100),
+    # Small terminal size
+    terminal_width=st.integers(min_value=40, max_value=80),
+    terminal_height=st.integers(min_value=20, max_value=40)
+)
+@pytest.mark.property_test
+def test_oversized_banner_adaptation(
+    category: str,
+    name: str,
+    banner_width: int,
+    banner_height: int,
+    terminal_width: int,
+    terminal_height: int
+):
+    """Property 25: Oversized Banner Adaptation
+    
+    For any banner that exceeds terminal dimensions, the rendering system
+    should either select an alternative banner or render a minimal fallback,
+    never attempting to render the oversized banner directly.
+    
+    This test verifies that:
+    1. Oversized banners are detected
+    2. System selects alternative that fits
+    3. Fallback is used if no alternatives fit
+    4. Selected banner always fits in terminal (or is fallback)
+    5. System never crashes on oversized banners
+    """
+    from src.banner import Banner, BannerMetadata, BannerDatabase, BannerRenderer
+    from src.config import AppConfig, BannerConfig
+    from src.themes import ThemeRegistry
+    from rich.console import Console
+    from pathlib import Path
+    from unittest.mock import Mock
+    import tempfile
+    
+    # Arrange: Create a database with one oversized banner and one small banner
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        ascii_file = tmp_path / "ASCII-Full-Logo.txt"
+        
+        # Create oversized banner
+        oversized_lines = ["X" * banner_width for _ in range(banner_height)]
+        
+        # Create small banner that will fit
+        small_width = min(terminal_width - 10, 30)
+        small_height = min(terminal_height - 5, 10)
+        small_lines = ["S" * small_width for _ in range(small_height)]
+        
+        content = f"""---
+DEFINITIONS
+-----------
+# {category}: "Test category"
+
+---
+{category}:OVERSIZED
+--------------------
+"""
+        content += "\n".join(oversized_lines)
+        content += f"""
+---
+{category}:SMALL
+----------------
+"""
+        content += "\n".join(small_lines)
+        content += "\n---\n"
+        
+        ascii_file.write_text(content, encoding='utf-8')
+        
+        # Create config requesting random selection from this category
+        config = AppConfig(
+            banner=BannerConfig(
+                mode="category",
+                selected_categories=[category]
+            )
+        )
+        
+        # Create mock console with small terminal size
+        console = Mock(spec=Console)
+        console.size = (terminal_width, terminal_height)
+        
+        # Create database and renderer
+        db = BannerDatabase(tmp_path)
+        theme = ThemeRegistry.get_theme("CRT_Cyan")
+        renderer = BannerRenderer(theme)
+        
+        # Act: Select banner with adaptation
+        selected_banner = renderer.select_banner_with_adaptation(db, console, config)
+        
+        # Assert: System did not crash
+        assert selected_banner is not None, "System should return a banner"
+        
+        # Assert: Selected banner is valid
+        assert isinstance(selected_banner.lines, list), "Selected banner should have lines"
+        assert len(selected_banner.lines) > 0, "Selected banner should have content"
+        
+        # Assert: Selected banner is NOT the oversized one (unless it's fallback)
+        if selected_banner.metadata.name == "OVERSIZED":
+            # This should not happen - oversized banner should be filtered out
+            pytest.fail("System selected oversized banner instead of smaller alternative")
+        
+        # Assert: Selected banner fits in terminal OR is the fallback
+        fits = renderer.validate_terminal_size(selected_banner, console)
+        is_fallback = selected_banner.metadata.category == "FALLBACK"
+        
+        assert fits or is_fallback, \
+            f"Selected banner should fit in terminal or be fallback. " \
+            f"Banner: {selected_banner.width}x{selected_banner.height}, " \
+            f"Terminal: {terminal_width}x{terminal_height}, " \
+            f"Fits: {fits}, Is fallback: {is_fallback}"
+        
+        # Assert: If small banner exists and fits, it should be selected
+        if small_width + 4 <= terminal_width and small_height + 2 <= terminal_height:
+            # Small banner should fit, so it should be selected (or fallback)
+            assert selected_banner.metadata.name in ("SMALL", "DEFAULT"), \
+                f"Should select SMALL banner or fallback, got {selected_banner.metadata.name}"
+
+
+@given(
+    # Generate scenario where ALL banners are too large
+    num_banners=st.integers(min_value=2, max_value=5),
+    banner_width=st.integers(min_value=100, max_value=150),
+    banner_height=st.integers(min_value=40, max_value=60),
+    terminal_width=st.integers(min_value=30, max_value=60),
+    terminal_height=st.integers(min_value=15, max_value=30)
+)
+@pytest.mark.property_test
+def test_oversized_banner_all_too_large(
+    num_banners: int,
+    banner_width: int,
+    banner_height: int,
+    terminal_width: int,
+    terminal_height: int
+):
+    """Property 25 (Edge Case): When all banners are too large, fallback is used.
+    
+    For scenarios where every banner in the database exceeds terminal dimensions,
+    the system should fall back to the hardcoded fallback banner.
+    """
+    from src.banner import BannerDatabase, BannerRenderer
+    from src.config import AppConfig, BannerConfig
+    from src.themes import ThemeRegistry
+    from rich.console import Console
+    from pathlib import Path
+    from unittest.mock import Mock
+    import tempfile
+    
+    # Arrange: Create database with only oversized banners
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        ascii_file = tmp_path / "ASCII-Full-Logo.txt"
+        
+        content = """---
+DEFINITIONS
+-----------
+# LARGE: "Large banners"
+
+"""
+        
+        # Add multiple oversized banners
+        for i in range(num_banners):
+            lines = ["X" * banner_width for _ in range(banner_height)]
+            content += f"""---
+LARGE:BANNER{i}
+---------------
+"""
+            content += "\n".join(lines) + "\n"
+        
+        content += "---\n"
+        
+        ascii_file.write_text(content, encoding='utf-8')
+        
+        # Create config
+        config = AppConfig(
+            banner=BannerConfig(mode="random")
+        )
+        
+        # Create mock console with small terminal
+        console = Mock(spec=Console)
+        console.size = (terminal_width, terminal_height)
+        
+        # Create database and renderer
+        db = BannerDatabase(tmp_path)
+        theme = ThemeRegistry.get_theme("CRT_Cyan")
+        renderer = BannerRenderer(theme)
+        
+        # Act: Select banner with adaptation
+        selected_banner = renderer.select_banner_with_adaptation(db, console, config)
+        
+        # Assert: System returned fallback banner
+        assert selected_banner is not None, "System should return a banner"
+        assert selected_banner.metadata.category == "FALLBACK", \
+            "When all banners are too large, fallback should be used"
+        assert selected_banner.metadata.name == "DEFAULT", \
+            "Fallback banner should have name DEFAULT"
+        
+        # Assert: Fallback banner is valid
+        assert len(selected_banner.lines) > 0, "Fallback banner should have content"
+        assert selected_banner.width > 0, "Fallback banner should have width"
+        assert selected_banner.height > 0, "Fallback banner should have height"

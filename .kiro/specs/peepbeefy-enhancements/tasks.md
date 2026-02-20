@@ -102,8 +102,8 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Property 9: Configuration Version Migration**
     - **Validates: Requirements 6.6**
 
-- [ ] 3. Phase 1: Core Infrastructure - Theme System
-  - [ ] 3.1 Create themes.py module with theme data models
+- [x] 3. Phase 1: Core Infrastructure - Theme System
+  - [x] 3.1 Create themes.py module with theme data models
     - Implement `ColorPalette` dataclass with primary, highlight, success, error, warning, dim, text colors
     - Implement `Theme` class with name, palette, and styling methods
     - Implement `get_box_style()` returning box.DOUBLE
@@ -111,7 +111,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `style_command()` and `style_description()` methods
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
   
-  - [ ] 3.2 Implement ThemeRegistry with predefined themes
+  - [x] 3.2 Implement ThemeRegistry with predefined themes
     - Create `ThemeRegistry` class with THEMES class variable
     - Define CRT_Cyan theme (default) with cyan/white palette
     - Define Amber_Terminal theme with amber/orange palette
@@ -121,12 +121,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `list_themes()` class method
     - _Requirements: 7.2, 7.6, 7.7_
   
-  - [ ] 3.3 Write property tests for theme system
+  - [x] 3.3 Write property tests for theme system
     - **Property 10: Theme Box Style Consistency**
     - **Property 11: Theme Color Consistency**
     - **Validates: Requirements 7.3, 7.4**
   
-  - [ ] 3.4 Implement terminal capability detection
+  - [x] 3.4 Implement terminal capability detection
     - Create `TerminalCapabilities` class with static methods
     - Implement `supports_rgb()` checking COLORTERM environment variable
     - Implement `supports_256_color()` checking terminal type
@@ -134,12 +134,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `get_fallback_palette()` for ANSI color fallbacks
     - _Requirements: 15.1, 15.2, 15.3_
   
-  - [ ] 3.5 Write property test for terminal color fallback
+  - [x] 3.5 Write property test for terminal color fallback
     - **Property 35: Terminal Color Capability Fallback**
     - **Validates: Requirements 15.2**
 
-- [ ] 4. Phase 1: Core Infrastructure - Banner Renderer
-  - [ ] 4.1 Implement BannerRenderer class for static rendering
+- [x] 4. Phase 1: Core Infrastructure - Banner Renderer
+  - [x] 4.1 Implement BannerRenderer class for static rendering
     - Create `BannerRenderer` class with theme parameter
     - Implement `render_static()` method returning Rich Panel
     - Apply theme colors to banner text
@@ -147,30 +147,30 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle empty banners gracefully
     - _Requirements: 1.6, 7.3, 7.4_
   
-  - [ ] 4.2 Add terminal size validation to BannerRenderer
+  - [x] 4.2 Add terminal size validation to BannerRenderer
     - Implement `validate_terminal_size()` method
     - Check banner width and height against console dimensions
     - Return boolean indicating if banner fits
     - _Requirements: 10.4_
   
-  - [ ] 4.3 Write property test for banner dimension validation
+  - [x] 4.3 Write property test for banner dimension validation
     - **Property 24: Banner Dimension Validation**
     - **Validates: Requirements 10.4**
   
-  - [ ] 4.4 Implement banner selection with size adaptation
+  - [x] 4.4 Implement banner selection with size adaptation
     - Implement `get_fallback_banner()` method returning hardcoded default
     - Create banner selection algorithm with terminal size filtering
     - Implement fallback chain: selected → category → random → fallback
     - Log banner selection decisions at INFO level
     - _Requirements: 10.1, 10.2, 10.5, 14.1_
   
-  - [ ] 4.5 Write property tests for error recovery
+  - [x] 4.5 Write property tests for error recovery
     - **Property 22: Banner Load Error Recovery**
     - **Property 25: Oversized Banner Adaptation**
     - **Validates: Requirements 10.2, 10.5**
 
-- [ ] 5. Phase 1: Core Infrastructure - Integration
-  - [ ] 5.1 Integrate banner system into main.py startup
+- [x] 5. Phase 1: Core Infrastructure - Integration
+  - [x] 5.1 Integrate banner system into main.py startup
     - Import banner, config, and themes modules
     - Load configuration at startup
     - Initialize BannerDatabase with assets directory
@@ -179,7 +179,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle all errors gracefully with fallbacks
     - _Requirements: 1.1, 1.2, 2.7, 7.7_
   
-  - [ ] 5.2 Write unit tests for main.py integration
+  - [x] 5.2 Write unit tests for main.py integration
     - Test banner displays on startup
     - Test configuration loads correctly
     - Test fallback works when files missing
