@@ -139,7 +139,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Validates: Requirements 15.2**
 
 - [ ] 4. Phase 1: Core Infrastructure - Banner Renderer
-  - [~] 4.1 Implement BannerRenderer class for static rendering
+  - [ ] 4.1 Implement BannerRenderer class for static rendering
     - Create `BannerRenderer` class with theme parameter
     - Implement `render_static()` method returning Rich Panel
     - Apply theme colors to banner text
@@ -147,24 +147,24 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle empty banners gracefully
     - _Requirements: 1.6, 7.3, 7.4_
   
-  - [~] 4.2 Add terminal size validation to BannerRenderer
+  - [ ] 4.2 Add terminal size validation to BannerRenderer
     - Implement `validate_terminal_size()` method
     - Check banner width and height against console dimensions
     - Return boolean indicating if banner fits
     - _Requirements: 10.4_
   
-  - [~] 4.3 Write property test for banner dimension validation
+  - [ ]* 4.3 Write property test for banner dimension validation
     - **Property 24: Banner Dimension Validation**
     - **Validates: Requirements 10.4**
   
-  - [~] 4.3 Implement banner selection with size adaptation
+  - [ ] 4.4 Implement banner selection with size adaptation
     - Implement `get_fallback_banner()` method returning hardcoded default
     - Create banner selection algorithm with terminal size filtering
     - Implement fallback chain: selected → category → random → fallback
     - Log banner selection decisions at INFO level
     - _Requirements: 10.1, 10.2, 10.5, 14.1_
   
-  - [~] 4.4 Write property tests for error recovery
+  - [ ]* 4.5 Write property tests for error recovery
     - **Property 22: Banner Load Error Recovery**
     - **Property 25: Oversized Banner Adaptation**
     - **Validates: Requirements 10.2, 10.5**
