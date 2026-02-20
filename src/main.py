@@ -602,18 +602,17 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
     table = Table(
         title=title,
         title_style="peep.heading",
-        box=box.HEAVY_HEAD,
+        box=box.SIMPLE_HEAVY,
         show_lines=False,
         header_style="peep.brand",
         padding=(0, 1),
-        collapse_padding=True,
     )
-    table.add_column("BEEF", justify="left", no_wrap=True)
-    table.add_column("CPU%", justify="right", width=6)
-    table.add_column("RAM", justify="right", width=8)
-    table.add_column("IO", justify="right", width=10)
-    table.add_column("Process", justify="left", ratio=2)
-    table.add_column("Info", justify="left", ratio=1)
+    table.add_column("BEEF", justify="left", no_wrap=True, min_width=14)
+    table.add_column("CPU%", justify="right", no_wrap=True, width=5)
+    table.add_column("RAM", justify="right", no_wrap=True, width=7)
+    table.add_column("IO", justify="right", no_wrap=True, width=10)
+    table.add_column("Process", justify="left", no_wrap=True, max_width=30)
+    table.add_column("Info", justify="left", no_wrap=True)
 
     for r in display_rows:
         cpu_txt = color_metric(r.cpu_pct, thresholds=(5.0, 15.0), fmt="{:.1f}")
@@ -623,27 +622,22 @@ def build_table(rows: List[ProcRow], title: str, limit: int = 25) -> Table:
             ram_style = "peep.metric.hot"
         elif ram_mb >= 800:
             ram_style = "peep.metric.warn"
-        ram_txt = Text(f"{ram_mb:.0f} MB", style=ram_style)
+        ram_txt = Text(f"{ram_mb:.0f}M", style=ram_style)
 
-        # Combine read+write into single IO column
         total_io = r.read_bps + r.write_bps
         io_txt = color_bytes(total_io, thresholds_mb_s=(2.0, 20.0))
 
-        # Process column: name [pid] with kind indicator
         proc_txt = Text()
         proc_txt.append(r.name, style="bold")
-        proc_txt.append(f" [{r.pid}]", style="peep.muted")
+        proc_txt.append(f" ({r.pid})", style="peep.muted")
 
-        # Info column: tags, services, or path — whatever is most useful
-        info_txt = Text()
+        info_parts: List[str] = []
         if r.tags:
-            tag_txt = ", ".join(r.tags[:2])
-            info_txt.append(tag_txt, style="peep.tag")
-        elif r.services:
-            svc_name = r.services[0].display_name or r.services[0].name
-            info_txt.append(svc_name, style="peep.service")
-        elif r.exe:
-            info_txt.append(short_path(r.exe, max_len=36), style="peep.muted")
+            info_parts.append(", ".join(r.tags[:2]))
+        if r.services:
+            svc = r.services[0].display_name or r.services[0].name
+            info_parts.append(svc)
+        info_txt = Text(" | ".join(info_parts), style="peep.tag") if info_parts else Text(short_path(r.exe, max_len=30), style="peep.muted")
 
         table.add_row(
             beef_bar(r.beef_score, max_beef),
@@ -762,7 +756,7 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
     ("[>]", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
     ("[>]", "beefy baseline diff", "Compare against a baseline snapshot"),
     ("[?]", "help", "Show help"),
-    ("[x]", "quit", "Exit"),
+    ("", "quit", "Exit"),
 ]
 
 
@@ -782,10 +776,10 @@ def print_header() -> None:
 
 
 def print_menu() -> None:
-    t = Table(box=None, show_header=False, padding=(0, 1), expand=True)
+    t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("", width=3, style="peep.accent", no_wrap=True)
-    t.add_column("Command", style="peep.heading", ratio=1, no_wrap=True)
-    t.add_column("Description", ratio=2)
+    t.add_column("Command", style="peep.heading", no_wrap=True, min_width=22)
+    t.add_column("Description")
     for icon, cmd, desc in MENU_ITEMS:
         t.add_row(icon, cmd, desc)
     console.print(Panel(
