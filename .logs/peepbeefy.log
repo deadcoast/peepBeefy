@@ -18951,3 +18951,12 @@ OSError: pytest: reading from stdin while output is captured!  Consider using `-
 [2026-02-21 02:19:41] [DEBUG] [src.themes] Terminal dimensions: 79x25
 [2026-02-21 02:19:41] [DEBUG] [src.themes] RGB support detected via COLORTERM: truecolor
 [2026-02-21 02:19:41] [DEBUG] [src.themes] 256-color support: False (TERM=)
+[2026-02-21 04:40:20] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-21 04:40:20] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-21 04:40:20] [INFO] [banner] Loading banners from cache
+[2026-02-21 04:40:20] [WARNING] [banner] Failed to load from cache: No module named 'src', will re-parse
+[2026-02-21 04:40:20] [WARNING] [banner] No banners fit in terminal 235x29, using fallback
+[2026-02-21 04:40:20] [INFO] [banner] Using fallback banner
+[2026-02-21 04:40:20] [INFO] [__main__] Animation enabled: duration=3.0s, fps=8, intensity=normal
+[2026-02-21 04:40:20] [ERROR] [animation] Error initializing FireAnimator: attempted relative import with no known parent package, using defaults
+[2026-02-21 04:40:23] [INFO] [banner] Animated banner FALLBACK:DEFAULT for 3.0s at 8fps with normal intensity
