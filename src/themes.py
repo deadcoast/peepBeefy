@@ -72,6 +72,20 @@ class Theme:
         """
         return self.palette.primary
     
+    def get_effective_palette(self) -> ColorPalette:
+        """Get the effective color palette based on terminal capabilities.
+        
+        Returns the original RGB palette if the terminal supports RGB,
+        otherwise returns an ANSI fallback palette.
+        
+        Returns:
+            ColorPalette appropriate for the terminal's capabilities
+        """
+        if TerminalCapabilities.supports_rgb():
+            return self.palette
+        else:
+            return TerminalCapabilities.get_fallback_palette(self)
+    
     def style_command(self, text: str) -> Text:
         """Apply command styling to text.
         
@@ -187,15 +201,38 @@ class TerminalCapabilities:
         """Check if terminal supports RGB (24-bit) color.
         
         Checks the COLORTERM environment variable for indicators of
-        true color support (truecolor, 24bit).
+        true color support (truecolor, 24bit), and also checks TERM
+        environment variable for RGB support indicators.
         
         Returns:
             True if terminal supports RGB color, False otherwise
         """
         import os
+        import logging
         
-        colorterm = os.environ.get("COLORTERM", "").lower()
-        return "truecolor" in colorterm or "24bit" in colorterm
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Check COLORTERM for truecolor/24bit indicators
+            colorterm = os.environ.get("COLORTERM", "").lower()
+            if "truecolor" in colorterm or "24bit" in colorterm:
+                logger.debug(f"RGB support detected via COLORTERM: {colorterm}")
+                return True
+            
+            # Check TERM for RGB support indicators
+            term = os.environ.get("TERM", "").lower()
+            rgb_indicators = ["truecolor", "24bit", "direct"]
+            has_rgb = any(indicator in term for indicator in rgb_indicators)
+            
+            if has_rgb:
+                logger.debug(f"RGB support detected via TERM: {term}")
+            else:
+                logger.debug(f"No RGB support detected (COLORTERM={colorterm}, TERM={term})")
+            
+            return has_rgb
+        except Exception as e:
+            logger.warning(f"Error detecting RGB support: {e}, assuming no RGB support")
+            return False
     
     @staticmethod
     def supports_256_color() -> bool:
@@ -207,27 +244,49 @@ class TerminalCapabilities:
             True if terminal supports 256 colors, False otherwise
         """
         import os
+        import logging
         
-        term = os.environ.get("TERM", "").lower()
-        return "256color" in term or "256" in term
+        logger = logging.getLogger(__name__)
+        
+        try:
+            term = os.environ.get("TERM", "").lower()
+            has_256 = "256color" in term or "256" in term
+            
+            logger.debug(f"256-color support: {has_256} (TERM={term})")
+            return has_256
+        except Exception as e:
+            logger.warning(f"Error detecting 256-color support: {e}, assuming no 256-color support")
+            return False
     
     @staticmethod
     def get_dimensions() -> tuple[int, int]:
         """Return terminal dimensions (width, height).
         
         Uses Rich Console to get current terminal size, with fallback
-        to standard 80x24 if size cannot be determined.
+        to standard 80x24 if size cannot be determined or is invalid.
         
         Returns:
-            Tuple of (width, height) in characters
+            Tuple of (width, height) in characters, defaults to (80, 24)
         """
         from rich.console import Console
+        import logging
+        
+        logger = logging.getLogger(__name__)
         
         try:
             console = Console()
-            return console.size
-        except Exception:
+            width, height = console.size
+            
+            # Validate dimensions - if invalid, use fallback
+            if width <= 0 or height <= 0:
+                logger.warning(f"Invalid terminal dimensions ({width}x{height}), using fallback 80x24")
+                return (80, 24)
+            
+            logger.debug(f"Terminal dimensions: {width}x{height}")
+            return (width, height)
+        except Exception as e:
             # Fallback to standard terminal size
+            logger.warning(f"Failed to get terminal dimensions: {e}, using fallback 80x24")
             return (80, 24)
     
     @staticmethod
@@ -235,7 +294,8 @@ class TerminalCapabilities:
         """Return ANSI fallback colors for limited terminals.
         
         Maps RGB hex colors to closest ANSI color codes for terminals
-        that don't support true color.
+        that don't support true color. Uses a comprehensive color mapping
+        that covers all theme colors.
         
         Args:
             theme: Theme to generate fallback palette for
@@ -243,42 +303,72 @@ class TerminalCapabilities:
         Returns:
             ColorPalette with ANSI color codes instead of RGB hex
         """
-        # Map common RGB colors to ANSI color names
-        # This is a simplified mapping - in production, you'd use
-        # a more sophisticated color distance algorithm
+        import logging
         
-        def rgb_to_ansi(hex_color: str) -> str:
-            """Convert RGB hex color to closest ANSI color name."""
-            # Simple mapping based on common colors
-            color_map = {
-                "#00d7d7": "cyan",
-                "#5fffff": "bright_cyan",
-                "#00ff87": "bright_green",
-                "#ff005f": "bright_red",
-                "#ffd700": "yellow",
-                "#6c6c6c": "bright_black",
-                "#ffffff": "white",
-                "#ffb000": "yellow",
-                "#ff8c00": "bright_yellow",
-                "#ffedd5": "white",
-                "#00ff00": "green",
-                "#7fff00": "bright_green",
-                "#e0ffe0": "white",
-                "#ff00ff": "magenta",
-                "#ff6ec7": "bright_magenta",
-                "#999999": "bright_black",
-            }
+        logger = logging.getLogger(__name__)
+        
+        try:
+            def rgb_to_ansi(hex_color: str) -> str:
+                """Convert RGB hex color to closest ANSI color name.
+                
+                Uses a comprehensive mapping from RGB hex codes to ANSI color names.
+                Falls back to white for unmapped colors.
+                """
+                # Comprehensive mapping of RGB colors to ANSI color names
+                color_map = {
+                    # Cyan theme colors
+                    "#00d7d7": "cyan",
+                    "#5fffff": "bright_cyan",
+                    
+                    # Amber theme colors
+                    "#ffb000": "yellow",
+                    "#ffd700": "yellow",
+                    "#ff8c00": "bright_yellow",
+                    "#ffedd5": "white",
+                    
+                    # Green theme colors
+                    "#00ff00": "green",
+                    "#7fff00": "bright_green",
+                    "#e0ffe0": "white",
+                    
+                    # Synthwave theme colors
+                    "#ff00ff": "magenta",
+                    "#ff6ec7": "bright_magenta",
+                    
+                    # Common colors across themes
+                    "#00ff87": "bright_green",  # Success
+                    "#ff005f": "bright_red",    # Error
+                    "#6c6c6c": "bright_black",  # Dim
+                    "#ffffff": "white",         # Text
+                    "#999999": "bright_black",  # Gray
+                }
+                
+                return color_map.get(hex_color.lower(), "white")
             
-            return color_map.get(hex_color.lower(), "white")
-        
-        original = theme.palette
-        
-        return ColorPalette(
-            primary=rgb_to_ansi(original.primary),
-            highlight=rgb_to_ansi(original.highlight),
-            success=rgb_to_ansi(original.success),
-            error=rgb_to_ansi(original.error),
-            warning=rgb_to_ansi(original.warning),
-            dim=rgb_to_ansi(original.dim),
-            text=rgb_to_ansi(original.text),
-        )
+            original = theme.palette
+            
+            fallback = ColorPalette(
+                primary=rgb_to_ansi(original.primary),
+                highlight=rgb_to_ansi(original.highlight),
+                success=rgb_to_ansi(original.success),
+                error=rgb_to_ansi(original.error),
+                warning=rgb_to_ansi(original.warning),
+                dim=rgb_to_ansi(original.dim),
+                text=rgb_to_ansi(original.text),
+            )
+            
+            logger.debug(f"Generated ANSI fallback palette for theme {theme.name}")
+            return fallback
+            
+        except Exception as e:
+            logger.error(f"Failed to generate fallback palette: {e}, using default ANSI colors")
+            # Return a safe default palette
+            return ColorPalette(
+                primary="cyan",
+                highlight="bright_cyan",
+                success="bright_green",
+                error="bright_red",
+                warning="yellow",
+                dim="bright_black",
+                text="white",
+            )

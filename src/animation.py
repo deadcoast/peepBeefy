@@ -30,13 +30,44 @@ class FirePalette:
     - Indices 8-11: Flame tips (orange to yellow-white)
     """
     
+    # RGB (24-bit) color palette
     COLORS = (
         "#4F0F07", "#6D1504", "#8B1A00", "#AB1E00",  # embers
         "#CC2200", "#E53400", "#FF4500", "#FF6800",  # flame core
         "#FF8C00", "#FFB400", "#FFD700", "#FFE55C",  # tips
     )
     
+    # 8-bit color palette fallback (ANSI 256-color codes)
+    # Mapped to closest 8-bit colors for terminals without RGB support
+    COLORS_8BIT = (
+        "color(52)",   # dark red (ember)
+        "color(88)",   # red (ember)
+        "color(124)",  # red (ember)
+        "color(160)",  # bright red (ember)
+        "color(196)",  # bright red (flame core)
+        "color(202)",  # orange-red (flame core)
+        "color(208)",  # orange (flame core)
+        "color(214)",  # orange (flame core)
+        "color(220)",  # yellow-orange (flame tips)
+        "color(226)",  # yellow (flame tips)
+        "color(227)",  # bright yellow (flame tips)
+        "color(229)",  # pale yellow (flame tips)
+    )
+    
     STYLES = tuple(Style(color=c) for c in COLORS)
+    STYLES_8BIT = tuple(Style(color=c) for c in COLORS_8BIT)
+    
+    @staticmethod
+    def get_styles(use_rgb: bool = True) -> tuple:
+        """Get the appropriate color styles based on terminal capabilities.
+        
+        Args:
+            use_rgb: Whether to use RGB colors (True) or 8-bit fallback (False)
+            
+        Returns:
+            Tuple of Style objects for the fire palette
+        """
+        return FirePalette.STYLES if use_rgb else FirePalette.STYLES_8BIT
 
 
 class FireAnimator:
@@ -69,8 +100,28 @@ class FireAnimator:
         Args:
             intensity: Animation intensity level ("subtle", "normal", "intense")
         """
-        self._intensity = intensity
-        self._intensity_multiplier = self._get_intensity_multiplier()
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            self._intensity = intensity
+            self._intensity_multiplier = self._get_intensity_multiplier()
+            
+            # Detect terminal color support and select appropriate palette
+            from .themes import TerminalCapabilities
+            self._use_rgb = TerminalCapabilities.supports_rgb()
+            self._palette_styles = FirePalette.get_styles(self._use_rgb)
+            
+            logger.debug(f"FireAnimator initialized: intensity={intensity}, use_rgb={self._use_rgb}")
+            
+        except Exception as e:
+            logger.error(f"Error initializing FireAnimator: {e}, using defaults")
+            # Set safe defaults
+            self._intensity = "normal"
+            self._intensity_multiplier = 1.0
+            self._use_rgb = True
+            self._palette_styles = FirePalette.STYLES
     
     def _get_intensity_multiplier(self) -> float:
         """Get the intensity multiplier for flicker and crack probabilities.
@@ -100,29 +151,68 @@ class FireAnimator:
             duration: Animation duration in seconds
             fps: Frames per second
         """
-        # Detect flame and text zones
-        flame_lines, text_lines = self._detect_zones(banner)
+        import logging
         
-        # Pre-compute all frames for smooth playback
-        # Ensure at least 1 frame
-        num_frames = max(1, int(duration * fps))
-        frames = []
-        rng = random.Random()
+        logger = logging.getLogger(__name__)
         
-        for frame_idx in range(num_frames):
-            frame = self._build_frame(banner, flame_lines, text_lines, rng)
-            frames.append(frame)
-        
-        # Animate with Live context
-        interval = 1.0 / fps
-        start = time.monotonic()
-        
-        with Live(frames[0], console=console, refresh_per_second=fps) as live:
-            frame_idx = 0
-            while time.monotonic() - start < duration:
-                live.update(frames[frame_idx % len(frames)])
-                frame_idx += 1
-                time.sleep(interval)
+        try:
+            # Validate inputs
+            if duration <= 0:
+                logger.warning(f"Invalid duration {duration}, using default 3.0s")
+                duration = 3.0
+            
+            if fps <= 0 or fps > 60:
+                logger.warning(f"Invalid FPS {fps}, using default 8")
+                fps = 8
+            
+            # Detect flame and text zones
+            flame_lines, text_lines = self._detect_zones(banner)
+            
+            # Pre-compute all frames for smooth playback
+            # Ensure at least 1 frame
+            num_frames = max(1, int(duration * fps))
+            frames = []
+            rng = random.Random()
+            
+            logger.debug(f"Pre-computing {num_frames} animation frames")
+            
+            for frame_idx in range(num_frames):
+                try:
+                    frame = self._build_frame(banner, flame_lines, text_lines, rng)
+                    frames.append(frame)
+                except Exception as e:
+                    logger.error(f"Error building frame {frame_idx}: {e}")
+                    # Use a simple fallback frame
+                    fallback_frame = Text("\n".join(banner.lines))
+                    frames.append(fallback_frame)
+            
+            # Animate with Live context
+            interval = 1.0 / fps
+            start = time.monotonic()
+            
+            with Live(frames[0], console=console, refresh_per_second=fps) as live:
+                frame_idx = 0
+                while time.monotonic() - start < duration:
+                    try:
+                        live.update(frames[frame_idx % len(frames)])
+                        frame_idx += 1
+                        time.sleep(interval)
+                    except KeyboardInterrupt:
+                        logger.info("Animation interrupted by user")
+                        break
+                    except Exception as e:
+                        logger.error(f"Error during animation playback: {e}")
+                        break
+            
+            logger.debug(f"Animation completed: {frame_idx} frames displayed")
+            
+        except Exception as e:
+            logger.error(f"Fatal error in animate_banner: {e}", exc_info=True)
+            # Display static banner as fallback
+            try:
+                console.print("\n".join(banner.lines))
+            except Exception:
+                pass
     
     def _detect_zones(self, banner) -> Tuple[List[int], List[int]]:
         """Detect which lines are flame vs text zones.
@@ -196,7 +286,8 @@ class FireAnimator:
         """Apply fire palette coloring to a flame zone line.
         
         Hotter colors at the top, cooler at the bottom. Flicker probability
-        decreases toward the bottom.
+        decreases toward the bottom. Uses RGB or 8-bit colors based on
+        terminal capabilities.
         
         Args:
             line: Text line to color
@@ -232,7 +323,7 @@ class FireAnimator:
                 else:
                     idx = base_idx
                 
-                result.append(char, style=FirePalette.STYLES[idx])
+                result.append(char, style=self._palette_styles[idx])
         
         return result
     
@@ -246,6 +337,7 @@ class FireAnimator:
         
         Uses white → gray → dim gradient based on line position.
         Randomly applies hot ember colors to simulate cracks.
+        Uses RGB or 8-bit colors based on terminal capabilities.
         
         Args:
             line: Text line to color
@@ -278,9 +370,9 @@ class FireAnimator:
                 result.append(char)
             else:
                 if rng.random() < crack_prob:
-                    # Ember crack effect
+                    # Ember crack effect - use the appropriate palette
                     idx = rng.choice(crack_palette)
-                    result.append(char, style=FirePalette.STYLES[idx])
+                    result.append(char, style=self._palette_styles[idx])
                 else:
                     result.append(char, style=base_style)
         

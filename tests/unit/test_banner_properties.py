@@ -2281,11 +2281,11 @@ def test_animation_lazy_loading(category: str, name: str, lines: list[str]):
 
 # **Validates: Requirements 8.5**
 @given(
-    # Generate a simple banner database
-    category=category_strategy,
-    name=name_strategy,
+    # Generate a simple banner database with valid category and name
+    category=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=90), min_size=3, max_size=20).filter(lambda x: x.isalnum() and x.isupper()),
+    name=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=90), min_size=3, max_size=20).filter(lambda x: x.isalnum() and x.isupper()),
     lines=st.lists(
-        ascii_line_strategy,
+        st.text(alphabet=st.characters(blacklist_categories=("Cc", "Cs")), min_size=1, max_size=60),
         min_size=1,
         max_size=10
     ).filter(lambda x: any(line.strip() for line in x))
@@ -2323,7 +2323,7 @@ def test_banner_cache_invalidation(category: str, name: str, lines: list[str]):
             "",
             "---",
             f"{category}:{name}",
-            "-" * max(5, len(category) + len(name) + 1),  # At least 5 dashes to avoid delimiter conflict
+            "-" * max(10, len(category) + len(name) + 1),  # At least 10 dashes to avoid delimiter conflict
         ]
         content_lines.extend(lines)
         content_lines.append("---")
@@ -2337,7 +2337,7 @@ def test_banner_cache_invalidation(category: str, name: str, lines: list[str]):
         first_load = db.load_banners()
         
         # Assert: First load succeeded
-        assert category in first_load, "First load should parse the banner"
+        assert category in first_load, f"First load should parse the banner (category={category}, name={name})"
         assert len(first_load[category]) == 1, "First load should have one banner"
         assert first_load[category][0].metadata.name == name
         assert first_load[category][0].lines == lines

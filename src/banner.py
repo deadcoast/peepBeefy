@@ -133,8 +133,11 @@ class BannerDatabase:
             self._save_to_cache(banners)
             
             return banners
+        except FileNotFoundError as e:
+            logger.error(f"ASCII database file not found: {ascii_file} - {e}")
+            return {}
         except Exception as e:
-            logger.error(f"Failed to parse ASCII database: {e}")
+            logger.error(f"Failed to parse ASCII database: {e}", exc_info=True)
             return {}
     
     def _is_cache_valid(self) -> bool:
@@ -264,8 +267,9 @@ class BannerDatabase:
                         current_lines = []
                         current_metadata = {}
                         state = ParserState.HEADER
-                    except ValueError:
-                        logger.warning(f"Line {line_num}: Invalid header format: {line}")
+                    except ValueError as e:
+                        logger.error(f"Line {line_num}: Invalid header format: {line} - {e}")
+                        continue
                         
             elif state == ParserState.DEFINITIONS:
                 if line.strip() == "---":
@@ -396,8 +400,8 @@ class BannerDatabase:
         if 'flame_lines' in metadata:
             try:
                 flame_lines = [int(x.strip()) for x in metadata['flame_lines'].split(',')]
-            except ValueError:
-                logger.warning(f"Invalid flame_lines format for {category}:{name}")
+            except ValueError as e:
+                logger.error(f"Invalid flame_lines format for {category}:{name}: {e}")
         
         banner_metadata = BannerMetadata(
             category=category,
@@ -569,6 +573,7 @@ class BannerRenderer:
         
         Creates a Rich Panel containing the banner ASCII art with theme
         colors applied. Uses DOUBLE box borders from the theme.
+        Automatically detects small terminals and renders minimal banner.
         
         Args:
             banner: Banner object to render
@@ -577,6 +582,12 @@ class BannerRenderer:
         Returns:
             Rich Panel object with styled banner content
         """
+        # Check if terminal is too small for ASCII art (less than 40x10)
+        term_width, term_height = console.size
+        if term_width < 40 or term_height < 10:
+            logger.info(f"Terminal too small ({term_width}x{term_height}), using minimal banner")
+            return self._render_minimal_banner(console)
+        
         # Handle empty banners gracefully
         if not banner.lines:
             logger.warning("Attempted to render empty banner")
@@ -591,6 +602,33 @@ class BannerRenderer:
                 content.append(line, style=Style(color=self._theme.palette.primary))
         
         # Create panel with DOUBLE box borders and theme colors
+        panel = Panel(
+            content,
+            box=self._theme.get_box_style(),
+            border_style=self._theme.get_border_style(),
+            padding=(0, 1),
+        )
+        
+        return panel
+    
+    def _render_minimal_banner(self, console: Console) -> Panel:
+        """Render a minimal text-only banner for small terminals.
+        
+        Displays "peepBeefy" in styled text instead of ASCII art when
+        the terminal is too small (less than 40x10).
+        
+        Args:
+            console: Rich Console instance for rendering
+        
+        Returns:
+            Rich Panel with minimal text-only banner
+        """
+        # Create styled text-only header
+        content = Text()
+        content.append("peep", style=Style(color=self._theme.palette.primary, bold=True))
+        content.append("Beefy", style=Style(color=self._theme.palette.highlight, bold=True))
+        
+        # Create minimal panel
         panel = Panel(
             content,
             box=self._theme.get_box_style(),

@@ -338,50 +338,63 @@ class SetupWizard:
         Returns:
             Selected banner ID in format "CATEGORY:NAME"
         """
-        self.console.print()
-        self.console.print("[dim]Loading banners for preview...[/dim]")
+        import logging
         
-        # Load banner database
-        banner_db = BannerDatabase(self._assets_dir)
-        banners_dict = banner_db.load_banners()
+        logger = logging.getLogger(__name__)
         
-        if not banners_dict:
-            self.console.print("[yellow]No banners available, using default[/yellow]")
-            return "1ST_BEEFS:BIGBEEF"
-        
-        # Get first banner from first category as default
-        first_category = list(banners_dict.keys())[0]
-        first_banner = banners_dict[first_category][0]
-        default_id = f"{first_banner.metadata.category}:{first_banner.metadata.name}"
-        
-        # Show a few banner options (limit to 3 for brevity)
-        self.console.print()
-        self.console.print("[bold]Available banners (showing first 3):[/bold]")
-        
-        count = 0
-        for category, banners in banners_dict.items():
-            for banner in banners:
+        try:
+            self.console.print()
+            self.console.print("[dim]Loading banners for preview...[/dim]")
+            
+            # Load banner database
+            banner_db = BannerDatabase(self._assets_dir)
+            banners_dict = banner_db.load_banners()
+            
+            if not banners_dict:
+                self.console.print("[yellow]No banners available, using default[/yellow]")
+                logger.warning("No banners available for selection, using default")
+                return "1ST_BEEFS:BIGBEEF"
+            
+            # Get first banner from first category as default
+            first_category = list(banners_dict.keys())[0]
+            first_banner = banners_dict[first_category][0]
+            default_id = f"{first_banner.metadata.category}:{first_banner.metadata.name}"
+            
+            # Show a few banner options (limit to 3 for brevity)
+            self.console.print()
+            self.console.print("[bold]Available banners (showing first 3):[/bold]")
+            
+            count = 0
+            for category, banners in banners_dict.items():
+                for banner in banners:
+                    if count >= 3:
+                        break
+                    
+                    banner_id = f"{banner.metadata.category}:{banner.metadata.name}"
+                    self.console.print(f"  [cyan]{banner_id}[/cyan] - {banner.metadata.description}")
+                    count += 1
+                
                 if count >= 3:
                     break
-                
-                banner_id = f"{banner.metadata.category}:{banner.metadata.name}"
-                self.console.print(f"  [cyan]{banner_id}[/cyan] - {banner.metadata.description}")
-                count += 1
             
-            if count >= 3:
-                break
-        
-        self.console.print()
-        self.console.print(f"[dim]Tip: You can enter any banner ID in format CATEGORY:NAME[/dim]")
-        self.console.print()
-        
-        # Prompt for banner selection
-        banner_id = Prompt.ask(
-            "[cyan]Enter banner ID[/cyan]",
-            default=default_id
-        )
-        
-        return banner_id
+            self.console.print()
+            self.console.print(f"[dim]Tip: You can enter any banner ID in format CATEGORY:NAME[/dim]")
+            self.console.print()
+            
+            # Prompt for banner selection
+            banner_id = Prompt.ask(
+                "[cyan]Enter banner ID[/cyan]",
+                default=default_id
+            )
+            
+            logger.info(f"User selected fixed banner: {banner_id}")
+            return banner_id
+            
+        except Exception as e:
+            logger.error(f"Error in banner selection: {e}", exc_info=True)
+            self.console.print(f"[red]Error loading banners: {e}[/red]")
+            self.console.print("[yellow]Using default banner[/yellow]")
+            return "1ST_BEEFS:BIGBEEF"
     
     def _select_categories(self) -> list[str]:
         """Allow user to select which categories to include.
@@ -389,43 +402,57 @@ class SetupWizard:
         Returns:
             List of selected category names
         """
-        self.console.print()
+        import logging
         
-        # Load banner database to get available categories
-        banner_db = BannerDatabase(self._assets_dir)
-        categories = banner_db.list_categories()
+        logger = logging.getLogger(__name__)
         
-        if not categories:
-            self.console.print("[yellow]No categories available, using default[/yellow]")
+        try:
+            self.console.print()
+            
+            # Load banner database to get available categories
+            banner_db = BannerDatabase(self._assets_dir)
+            categories = banner_db.list_categories()
+            
+            if not categories:
+                self.console.print("[yellow]No categories available, using default[/yellow]")
+                logger.warning("No categories available, using default")
+                return ["1ST_BEEFS"]
+            
+            # Show available categories
+            self.console.print("[bold]Available categories:[/bold]")
+            for cat in categories:
+                self.console.print(f"  [cyan]{cat}[/cyan]")
+            
+            self.console.print()
+            self.console.print("[dim]Enter categories separated by commas (e.g., 1ST_BEEFS,ALT)[/dim]")
+            self.console.print()
+            
+            # Prompt for category selection
+            default_cat = categories[0] if categories else "1ST_BEEFS"
+            categories_input = Prompt.ask(
+                "[cyan]Select categories[/cyan]",
+                default=default_cat
+            )
+            
+            # Parse comma-separated categories
+            selected = [cat.strip() for cat in categories_input.split(",")]
+            
+            # Validate that selected categories exist
+            valid_selected = [cat for cat in selected if cat in categories]
+            
+            if not valid_selected:
+                self.console.print(f"[yellow]Invalid categories, using default: {default_cat}[/yellow]")
+                logger.warning(f"Invalid categories selected: {selected}, using default")
+                return [default_cat]
+            
+            logger.info(f"User selected categories: {valid_selected}")
+            return valid_selected
+            
+        except Exception as e:
+            logger.error(f"Error in category selection: {e}", exc_info=True)
+            self.console.print(f"[red]Error loading categories: {e}[/red]")
+            self.console.print("[yellow]Using default category[/yellow]")
             return ["1ST_BEEFS"]
-        
-        # Show available categories
-        self.console.print("[bold]Available categories:[/bold]")
-        for cat in categories:
-            self.console.print(f"  [cyan]{cat}[/cyan]")
-        
-        self.console.print()
-        self.console.print("[dim]Enter categories separated by commas (e.g., 1ST_BEEFS,ALT)[/dim]")
-        self.console.print()
-        
-        # Prompt for category selection
-        default_cat = categories[0] if categories else "1ST_BEEFS"
-        categories_input = Prompt.ask(
-            "[cyan]Select categories[/cyan]",
-            default=default_cat
-        )
-        
-        # Parse comma-separated categories
-        selected = [cat.strip() for cat in categories_input.split(",")]
-        
-        # Validate that selected categories exist
-        valid_selected = [cat for cat in selected if cat in categories]
-        
-        if not valid_selected:
-            self.console.print(f"[yellow]Invalid categories, using default: {default_cat}[/yellow]")
-            return [default_cat]
-        
-        return valid_selected
     
     def _select_animation_preferences(self) -> tuple[bool, str]:
         """Animation preferences step with intensity selection.

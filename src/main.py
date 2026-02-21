@@ -41,6 +41,7 @@ from rich.traceback import install as rich_traceback_install
 from banner import BannerDatabase, BannerRenderer
 from config import ConfigManager
 from themes import ThemeRegistry
+from logging_config import setup_logging
 
 # --- Rich / Typer setup -------------------------------------------------------
 
@@ -2031,10 +2032,13 @@ def dev_top_mem(
 
 
 @app.callback(invoke_without_command=True)
-def _default(ctx: typer.Context):
+def _default(ctx: typer.Context, debug: bool = typer.Option(False, "--debug", help="Enable debug logging")):
     """
     Default behavior: start the interactive CLI if no subcommand is provided.
     """
+    # Initialize logging
+    setup_logging(debug=debug)
+    
     if ctx.invoked_subcommand is None:
         interactive_loop()
 
