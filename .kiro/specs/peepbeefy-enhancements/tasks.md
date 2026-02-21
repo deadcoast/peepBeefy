@@ -287,83 +287,83 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Property 13: Banner Display Performance**
     - **Validates: Requirements 8.3**
 
-- [ ] 10. Checkpoint - Phase 2 Complete
+- [x] 10. Checkpoint - Phase 2 Complete
   - Ensure all Phase 2 tests pass, verify fire animation works on banners, confirm performance meets <200ms target with caching. Ask the user if questions arise.
 
-- [ ] 11. Phase 3: Interactive Configuration - First-Run Wizard
-  - [ ] 11.1 Implement first-run detection in ConfigManager
+- [x] 11. Phase 3: Interactive Configuration - First-Run Wizard
+  - [x] 11.1 Implement first-run detection in ConfigManager
     - Update `is_first_run()` to check for missing config file
     - Add `mark_first_run_complete()` method to set flag
     - _Requirements: 12.1_
   
-  - [ ] 11.2 Create setup wizard module (wizard.py)
+  - [x] 11.2 Create setup wizard module (wizard.py)
     - Create `SetupWizard` class with console parameter
     - Implement welcome screen with Panel display
     - Implement step-by-step configuration flow
     - Return completed AppConfig object
     - _Requirements: 12.2, 12.3, 12.6_
   
-  - [ ] 11.3 Implement theme selection in wizard
+  - [x] 11.3 Implement theme selection in wizard
     - Display all available themes with visual previews
     - Show sample panel for each theme with colors
     - Use Rich Prompt for user selection
     - Default to CRT_Cyan if user skips
     - _Requirements: 7.6, 12.3_
   
-  - [ ] 11.4 Implement banner mode selection in wizard
+  - [x] 11.4 Implement banner mode selection in wizard
     - Present options: random, fixed, category
     - Explain each mode with descriptions
     - Show banner preview for fixed mode selection
     - Allow category filtering for category mode
     - _Requirements: 2.2, 2.3, 2.4, 12.3_
   
-  - [ ] 11.5 Implement animation preferences in wizard
+  - [x] 11.5 Implement animation preferences in wizard
     - Ask if user wants animations enabled
     - If enabled, ask for intensity level (subtle, normal, intense)
     - Show brief animation preview for each intensity
     - _Requirements: 3.6, 11.6, 12.3_
   
-  - [ ] 11.6 Add progress indicator to wizard
+  - [x] 11.6 Add progress indicator to wizard
     - Display step numbers (Step 1/3, Step 2/3, etc.)
     - Show progress bar or step indicator
     - Allow skipping to use defaults
     - _Requirements: 12.5_
   
-  - [ ] 11.7 Integrate wizard into main.py startup
+  - [x] 11.7 Integrate wizard into main.py startup
     - Check `is_first_run()` before normal startup
     - Launch wizard if first run detected
     - Save configuration after wizard completes
     - Mark first run as complete
     - _Requirements: 12.1, 12.2, 12.6_
   
-  - [ ] 11.8 Write integration test for first-run wizard
+  - [x] 11.8 Write integration test for first-run wizard
     - Test wizard launches on first run
     - Test configuration is saved after wizard
     - Test wizard can be skipped
     - _Requirements: 12.1, 12.2, 12.6_
 
-- [ ] 12. Phase 3: Interactive Configuration - Settings Menu
-  - [ ] 12.1 Add Settings menu option to CLI03
+- [x] 12. Phase 3: Interactive Configuration - Settings Menu
+  - [x] 12.1 Add Settings menu option to CLI03
     - Add "Settings" menu item to interactive menu
     - Implement settings submenu with configuration options
     - Display current configuration values
     - _Requirements: 5.1_
   
-  - [ ] 12.2 Implement banner configuration in settings menu
+  - [x] 12.2 Implement banner configuration in settings menu
     - Add "Change Banner Mode" option
     - Add "Select Fixed Banner" option (when mode is fixed)
     - Add "Filter Categories" option (when mode is category)
     - Show current banner mode and selection
     - _Requirements: 2.2, 2.3, 2.4_
   
-  - [ ] 12.3 Implement theme configuration in settings menu
+  - [x] 12.3 Implement theme configuration in settings menu
     - Add "Change Theme" option
     - Display theme previews before selection
     - Apply theme immediately after selection
     - Save theme preference to config
     - _Requirements: 7.5, 7.6_
   
-  - [ ] 12.4 Implement animation configuration in settings menu
+  - [x] 12.4 Implement animation configuration in settings menu
     - Add "Toggle Animation" option
     - Add "Animation Intensity" option
     - Add "Animation Duration" option
@@ -371,116 +371,116 @@ The implementation will use **Python** with the Rich library for terminal render
     - Validate input ranges and show helpful errors
     - _Requirements: 3.6, 11.1, 11.2, 11.6_
   
-  - [ ] 12.5 Add "Reconfigure" option to settings menu
+  - [x] 12.5 Add "Reconfigure" option to settings menu
     - Add option to re-run setup wizard
     - Preserve current config as defaults in wizard
     - _Requirements: 12.7_
   
-  - [ ] 12.6 Write unit tests for settings menu
+  - [x] 12.6 Write unit tests for settings menu
     - Test menu displays current configuration
     - Test configuration changes are saved
     - Test input validation works correctly
     - _Requirements: 5.1, 2.1_
 
-- [ ] 13. Phase 3: Interactive Configuration - Banner Preview System
-  - [ ] 13.1 Implement banner preview grid renderer
+- [x] 13. Phase 3: Interactive Configuration - Banner Preview System
+  - [x] 13.1 Implement banner preview grid renderer
     - Create `BannerPreview` class with grid layout
     - Display multiple banners in columns (2-3 columns based on terminal width)
     - Show banner name and category for each preview
     - Scale banners to fit preview area if needed
     - _Requirements: 2.6, 13.1, 13.2_
   
-  - [ ] 13.2 Write property tests for banner preview
+  - [x] 13.2 Write property tests for banner preview
     - **Property 27: Banner Preview Scaling**
     - **Property 37: Banner Preview Display**
     - **Validates: Requirements 2.6, 13.2**
   
-  - [ ] 13.3 Add pagination support to preview grid
+  - [x] 13.3 Add pagination support to preview grid
     - Implement page navigation (next/previous)
     - Display page indicator (Page 1/5)
     - Show 10-20 banners per page based on terminal size
     - _Requirements: 13.4_
   
-  - [ ] 13.4 Write property test for preview pagination
+  - [x] 13.4 Write property test for preview pagination
     - **Property 28: Banner Preview Pagination**
     - **Validates: Requirements 13.4**
   
-  - [ ] 13.5 Add metadata display to banner previews
+  - [x] 13.5 Add metadata display to banner previews
     - Show banner description below ASCII art
     - Show author if available
     - Show animation compatibility indicator
     - _Requirements: 9.3, 13.5_
   
-  - [ ] 13.6 Write property test for preview metadata
+  - [x] 13.6 Write property test for preview metadata
     - **Property 29: Preview Metadata Display**
     - **Validates: Requirements 9.3, 13.5**
   
-  - [ ] 13.7 Implement adaptive preview layout
+  - [x] 13.7 Implement adaptive preview layout
     - Detect terminal width and adjust columns
     - Use single column for narrow terminals (<80 cols)
     - Use 2-3 columns for wider terminals
     - _Requirements: 13.6_
   
-  - [ ] 13.8 Write property test for adaptive layout
+  - [x] 13.8 Write property test for adaptive layout
     - **Property 30: Adaptive Preview Layout**
     - **Validates: Requirements 13.6**
   
-  - [ ] 13.9 Add animated banner preview support
+  - [x] 13.9 Add animated banner preview support
     - Show brief animation sample (1-2 seconds) for animated banners
     - Add "Preview Animation" option in banner selection
     - Filter by animation_compatible when animation enabled
     - _Requirements: 9.4, 13.3_
   
-  - [ ] 13.10 Write property test for animation compatibility filtering
+  - [x] 13.10 Write property test for animation compatibility filtering
     - **Property 21: Animation Compatibility Filtering**
     - **Validates: Requirements 9.4**
 
-- [ ] 14. Phase 3: Interactive Configuration - CLI02 Commands
-  - [ ] 14.1 Add "beefy config" command
+- [x] 14. Phase 3: Interactive Configuration - CLI02 Commands
+  - [x] 14.1 Add "beefy config" command
     - Implement command to display current configuration
     - Show all config values in formatted output
     - Add subcommands: show, set, reset
     - _Requirements: 5.1_
   
-  - [ ] 14.2 Add "beefy banner preview" command
+  - [x] 14.2 Add "beefy banner preview" command
     - Implement command to show banner preview grid
     - Support filtering by category: `beefy banner preview --category ALT`
     - Support pagination: `beefy banner preview --page 2`
     - _Requirements: 2.6_
   
-  - [ ] 14.3 Add "beefy theme set" command
+  - [x] 14.3 Add "beefy theme set" command
     - Implement command to change theme: `beefy theme set Amber_Terminal`
     - Show theme preview before applying
     - Validate theme name against available themes
     - _Requirements: 7.5_
   
-  - [ ] 14.4 Add keyboard shortcuts to interactive menu
+  - [x] 14.4 Add keyboard shortcuts to interactive menu
     - Display shortcuts alongside menu items (e.g., "1. Peep All [P]")
     - Support number input and letter shortcuts
     - Update menu rendering to show shortcuts
     - _Requirements: 5.2, 5.3_
   
-  - [ ] 14.5 Implement command history navigation
+  - [x] 14.5 Implement command history navigation
     - Add up/down arrow support for command history
     - Store recent commands in memory
     - Implement "recent commands" quick-access list
     - _Requirements: 5.4, 5.5_
   
-  - [ ] 14.6 Write property test for command history
+  - [x] 14.6 Write property test for command history
     - **Property 40: Recent Commands Tracking**
     - **Validates: Requirements 5.5**
   
-  - [ ] 14.7 Improve error messages in interactive CLI
+  - [x] 14.7 Improve error messages in interactive CLI
     - Add helpful suggestions for invalid inputs
     - Show "Did you mean...?" for typos
     - Maintain command-teaching approach (show full syntax)
     - _Requirements: 5.6, 5.7_
   
-  - [ ] 14.8 Write property test for menu input mapping
+  - [x] 14.8 Write property test for menu input mapping
     - **Property 39: Menu Input Mapping**
     - **Validates: Requirements 5.3**
 
-- [ ] 15. Checkpoint - Phase 3 Complete
+- [x] 15. Checkpoint - Phase 3 Complete
   - Ensure all Phase 3 tests pass, verify first-run wizard works correctly, confirm settings menu allows reconfiguration, test banner preview grid displays properly. Ask the user if questions arise.
 
 - [ ] 16. Phase 4: Polish and Optimization - Logging System

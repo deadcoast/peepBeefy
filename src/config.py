@@ -219,6 +219,25 @@ class ConfigManager:
         """
         return not self.CONFIG_FILE.exists()
     
+    def mark_first_run_complete(self) -> None:
+        """Mark the first-run setup wizard as complete.
+        
+        Sets the first_run_complete flag to True in the current configuration
+        and saves it to disk. If no configuration is loaded, loads the default
+        configuration first.
+        """
+        # Load current config if not already loaded
+        if self._config is None:
+            self._config = self.load()
+        
+        # Set first_run_complete flag
+        self._config.first_run_complete = True
+        
+        # Save the updated configuration
+        self.save(self._config)
+        
+        logger.info("Marked first-run setup as complete")
+    
     def _backup_corrupted(self) -> None:
         """Backup corrupted config file before creating fresh config.
         

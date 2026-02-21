@@ -31,6 +31,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.rule import Rule
+from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
@@ -77,9 +78,15 @@ app = typer.Typer(
 peep_app = typer.Typer(add_completion=False, help="User-friendly 'peep' commands.")
 dev_app = typer.Typer(add_completion=False, help="Developer-spec commands (advanced).")
 baseline_app = typer.Typer(add_completion=False, help="Baseline snapshot + diff.")
+config_app = typer.Typer(add_completion=False, help="Configuration management commands.")
+banner_app = typer.Typer(add_completion=False, help="Banner management commands.")
+theme_app = typer.Typer(add_completion=False, help="Theme management commands.")
 app.add_typer(peep_app, name="peep")
 app.add_typer(dev_app, name="dev")
 app.add_typer(baseline_app, name="baseline")
+app.add_typer(config_app, name="config")
+app.add_typer(banner_app, name="banner")
+app.add_typer(theme_app, name="theme")
 
 dev_top_app = typer.Typer(add_completion=False, help="Developer-spec 'top' commands with explicit flags.")
 dev_app.add_typer(dev_top_app, name="top")
@@ -860,6 +867,7 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
     ("[>]", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
     ("[>]", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
     ("[>]", "beefy baseline diff", "Compare against a baseline snapshot"),
+    ("[⚙]", "settings", "Configure banner, theme, and animation preferences"),
     ("[?]", "help", "Show help"),
     ("", "quit", "Exit"),
 ]
@@ -869,6 +877,7 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
 def print_header() -> None:
     """Display the peepBeefy banner using the banner system.
     
+    Checks for first run and launches setup wizard if needed.
     Loads configuration, initializes the banner database, selects a banner
     based on user preferences, and renders it with the configured theme.
     Supports both static and animated rendering based on configuration.
@@ -878,9 +887,26 @@ def print_header() -> None:
     
     # Try to load banner system with graceful fallback
     try:
-        # Load configuration
+        # Check for first run and launch wizard if needed
         config_manager = ConfigManager()
-        config = config_manager.load()
+        
+        if config_manager.is_first_run():
+            # Import wizard module
+            from wizard import SetupWizard
+            
+            # Launch setup wizard
+            assets_dir = Path(__file__).parent.parent / ".assets"
+            wizard = SetupWizard(console, assets_dir)
+            config = wizard.run()
+            
+            # Save configuration
+            config_manager.save(config)
+            
+            # Mark first run as complete
+            config_manager.mark_first_run_complete()
+        else:
+            # Load existing configuration
+            config = config_manager.load()
         
         # Get theme
         theme = ThemeRegistry.get_theme(config.theme_variant)
@@ -954,17 +980,289 @@ def print_header() -> None:
         console.print(panel)
 
 
+def show_settings_menu() -> None:
+    """Display and handle the settings menu for configuration.
+    
+    Provides options to configure:
+    - Banner mode and selection
+    - Theme variant
+    - Animation settings
+    - Reconfigure (re-run setup wizard)
+    """
+    from src.config import ConfigManager, AppConfig, BannerConfig
+    from src.themes import ThemeRegistry
+    from src.banner import BannerDatabase
+    from pathlib import Path
+    
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    
+    while True:
+        # Display current configuration
+        current_config_text = Text()
+        current_config_text.append("Current Configuration:\n\n", style="bold white")
+        current_config_text.append(f"  Theme: ", style="white")
+        current_config_text.append(f"{config.theme_variant}\n", style="peep.accent")
+        current_config_text.append(f"  Banner Mode: ", style="white")
+        current_config_text.append(f"{config.banner.mode}\n", style="peep.accent")
+        
+        if config.banner.mode == "fixed" and config.banner.selected_banner:
+            current_config_text.append(f"  Selected Banner: ", style="white")
+            current_config_text.append(f"{config.banner.selected_banner}\n", style="peep.accent")
+        elif config.banner.mode == "category":
+            current_config_text.append(f"  Categories: ", style="white")
+            current_config_text.append(f"{', '.join(config.banner.selected_categories)}\n", style="peep.accent")
+        
+        current_config_text.append(f"  Animation: ", style="white")
+        anim_status = "Enabled" if config.banner.animation_enabled else "Disabled"
+        current_config_text.append(f"{anim_status}\n", style="peep.accent")
+        
+        if config.banner.animation_enabled:
+            current_config_text.append(f"  Animation Intensity: ", style="white")
+            current_config_text.append(f"{config.banner.animation_intensity}\n", style="peep.accent")
+            current_config_text.append(f"  Animation Duration: ", style="white")
+            current_config_text.append(f"{config.banner.animation_duration}s\n", style="peep.accent")
+            current_config_text.append(f"  Animation FPS: ", style="white")
+            current_config_text.append(f"{config.banner.animation_fps}\n", style="peep.accent")
+        
+        # Settings menu options
+        settings_table = Table(box=None, show_header=False, padding=(0, 1))
+        settings_table.add_column("", width=3, style="peep.accent", no_wrap=True)
+        settings_table.add_column("Option", style="peep.heading", no_wrap=True, min_width=22)
+        settings_table.add_column("Description")
+        
+        settings_table.add_row("[1]", "Change Banner Mode", "Switch between random, fixed, or category mode")
+        settings_table.add_row("[2]", "Change Theme", "Select a different color theme")
+        settings_table.add_row("[3]", "Toggle Animation", "Enable or disable banner animation")
+        settings_table.add_row("[4]", "Animation Settings", "Configure animation intensity, duration, and FPS")
+        settings_table.add_row("[5]", "Reconfigure", "Re-run the setup wizard")
+        settings_table.add_row("[B]", "Back", "Return to main menu")
+        
+        console.print(Panel(
+            current_config_text,
+            title="[peep.accent.lite]Settings[/]",
+            box=box.ROUNDED,
+            border_style="peep.accent",
+            padding=(1, 2),
+        ))
+        
+        console.print(Panel(
+            settings_table,
+            title="[peep.accent.lite]──[/] Options [peep.accent.lite]──[/]",
+            box=box.ROUNDED,
+            border_style="peep.accent",
+            padding=(1, 2),
+        ))
+        
+        choice = Prompt.ask("Select option", default="B").strip().lower()
+        
+        if choice in ("b", "back", ""):
+            return
+        
+        if choice == "1":
+            # Change banner mode
+            console.print("\n[bold white]Banner Modes:[/]")
+            console.print("  [peep.accent]random[/] - Show a different banner each time")
+            console.print("  [peep.accent]fixed[/] - Always show the same banner")
+            console.print("  [peep.accent]category[/] - Random from selected categories\n")
+            
+            mode = Prompt.ask(
+                "Select mode",
+                choices=["random", "fixed", "category"],
+                default=config.banner.mode
+            )
+            config.banner.mode = mode
+            
+            if mode == "fixed":
+                # Show available banners for selection
+                assets_dir = Path(__file__).parent.parent / ".assets"
+                banner_db = BannerDatabase(assets_dir)
+                categories = banner_db.list_categories()
+                
+                console.print("\n[bold white]Available Categories:[/]")
+                for i, cat in enumerate(categories, 1):
+                    console.print(f"  [{i}] {cat}")
+                
+                cat_choice = Prompt.ask("Select category number", default="1")
+                try:
+                    cat_idx = int(cat_choice) - 1
+                    if 0 <= cat_idx < len(categories):
+                        selected_cat = categories[cat_idx]
+                        # Get banners in this category
+                        banners = banner_db._cache.get(selected_cat, [])
+                        if banners:
+                            console.print(f"\n[bold white]Banners in {selected_cat}:[/]")
+                            for i, banner in enumerate(banners, 1):
+                                console.print(f"  [{i}] {banner.metadata.name} - {banner.metadata.description}")
+                            
+                            banner_choice = Prompt.ask("Select banner number", default="1")
+                            try:
+                                banner_idx = int(banner_choice) - 1
+                                if 0 <= banner_idx < len(banners):
+                                    selected_banner = banners[banner_idx]
+                                    config.banner.selected_banner = f"{selected_cat}:{selected_banner.metadata.name}"
+                                    _success(f"Selected banner: {config.banner.selected_banner}")
+                            except (ValueError, IndexError):
+                                _error("Invalid banner selection")
+                except (ValueError, IndexError):
+                    _error("Invalid category selection")
+            
+            elif mode == "category":
+                # Allow category filtering
+                assets_dir = Path(__file__).parent.parent / ".assets"
+                banner_db = BannerDatabase(assets_dir)
+                categories = banner_db.list_categories()
+                
+                console.print("\n[bold white]Available Categories:[/]")
+                for i, cat in enumerate(categories, 1):
+                    console.print(f"  [{i}] {cat}")
+                
+                console.print("\n[peep.muted]Enter category numbers separated by commas (e.g., 1,2,3)[/]")
+                cat_input = Prompt.ask("Select categories", default="1")
+                
+                try:
+                    selected_indices = [int(x.strip()) - 1 for x in cat_input.split(",")]
+                    selected_cats = [categories[i] for i in selected_indices if 0 <= i < len(categories)]
+                    if selected_cats:
+                        config.banner.selected_categories = selected_cats
+                        _success(f"Selected categories: {', '.join(selected_cats)}")
+                    else:
+                        _error("No valid categories selected")
+                except (ValueError, IndexError):
+                    _error("Invalid category selection")
+            
+            config_manager.save(config)
+            _success("Banner mode updated")
+            continue
+        
+        elif choice == "2":
+            # Change theme
+            from src.wizard import show_theme_preview
+            
+            themes = ThemeRegistry.list_themes()
+            console.print("\n[bold white]Available Themes:[/]")
+            
+            for i, theme_name in enumerate(themes, 1):
+                console.print(f"\n[{i}] {theme_name}")
+                show_theme_preview(theme_name)
+            
+            theme_choice = Prompt.ask(
+                "Select theme number",
+                choices=[str(i) for i in range(1, len(themes) + 1)],
+                default="1"
+            )
+            
+            try:
+                theme_idx = int(theme_choice) - 1
+                if 0 <= theme_idx < len(themes):
+                    config.theme_variant = themes[theme_idx]
+                    config_manager.save(config)
+                    _success(f"Theme changed to: {config.theme_variant}")
+                    console.print("[peep.muted]Theme will apply on next banner display[/]")
+            except (ValueError, IndexError):
+                _error("Invalid theme selection")
+            continue
+        
+        elif choice == "3":
+            # Toggle animation
+            config.banner.animation_enabled = not config.banner.animation_enabled
+            config_manager.save(config)
+            status = "enabled" if config.banner.animation_enabled else "disabled"
+            _success(f"Animation {status}")
+            continue
+        
+        elif choice == "4":
+            # Animation settings
+            if not config.banner.animation_enabled:
+                console.print("[peep.warning]Animation is currently disabled. Enable it first.[/]")
+                continue
+            
+            console.print("\n[bold white]Animation Settings:[/]")
+            
+            # Intensity
+            console.print("\n[peep.accent]Intensity Levels:[/]")
+            console.print("  [1] subtle - Reduced flicker (50% of normal)")
+            console.print("  [2] normal - Standard animation")
+            console.print("  [3] intense - Increased flicker (150% of normal)")
+            
+            intensity_map = {"1": "subtle", "2": "normal", "3": "intense"}
+            current_intensity = {"subtle": "1", "normal": "2", "intense": "3"}.get(config.banner.animation_intensity, "2")
+            
+            intensity_choice = Prompt.ask(
+                "Select intensity",
+                choices=["1", "2", "3"],
+                default=current_intensity
+            )
+            config.banner.animation_intensity = intensity_map[intensity_choice]
+            
+            # Duration
+            duration_str = Prompt.ask(
+                "Animation duration (seconds, 0.5-10.0)",
+                default=str(config.banner.animation_duration)
+            )
+            try:
+                duration = float(duration_str)
+                if 0.5 <= duration <= 10.0:
+                    config.banner.animation_duration = duration
+                else:
+                    _error("Duration must be between 0.5 and 10.0 seconds")
+            except ValueError:
+                _error("Invalid duration value")
+            
+            # FPS
+            fps_str = Prompt.ask(
+                "Animation FPS (4-30)",
+                default=str(config.banner.animation_fps)
+            )
+            try:
+                fps = int(fps_str)
+                if 4 <= fps <= 30:
+                    config.banner.animation_fps = fps
+                else:
+                    _error("FPS must be between 4 and 30")
+            except ValueError:
+                _error("Invalid FPS value")
+            
+            config_manager.save(config)
+            _success("Animation settings updated")
+            continue
+        
+        elif choice == "5":
+            # Reconfigure - re-run setup wizard
+            from src.wizard import run_setup_wizard
+            
+            console.print("\n[bold white]Re-running Setup Wizard[/]")
+            console.print("[peep.muted]Your current settings will be used as defaults[/]")
+            
+            if Confirm.ask("Continue?", default=True):
+                new_config = run_setup_wizard(current_config=config)
+                config_manager.save(new_config)
+                config = new_config
+                _success("Configuration updated")
+            continue
+        
+        else:
+            _error("Invalid option. Please select 1-5 or B.")
+
+
 def print_menu() -> None:
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("", width=3, style="peep.accent", no_wrap=True)
+    t.add_column("Key", width=3, style="peep.brand", no_wrap=True)
     t.add_column("Command", style="peep.heading", no_wrap=True, min_width=22)
     t.add_column("Description")
-    for icon, cmd, desc in MENU_ITEMS:
-        t.add_row(icon, cmd, desc)
+    
+    # Keyboard shortcuts for each menu item
+    shortcuts = ["1", "2", "3", "4", "5", "6", "7", "8", "s", "h", "q"]
+    
+    for idx, (icon, cmd, desc) in enumerate(MENU_ITEMS):
+        shortcut = shortcuts[idx] if idx < len(shortcuts) else ""
+        t.add_row(icon, f"[{shortcut}]" if shortcut else "", cmd, desc)
+    
     console.print(Panel(
         t,
         title=f"[peep.accent.lite]──[/] {BRANDED_NAME} [peep.accent.lite]Commands ──[/]",
-        subtitle="[peep.muted]Type a command or press Enter for the default[/peep.muted]",
+        subtitle="[peep.muted]Type a command, number, or letter shortcut[/peep.muted]",
         box=box.ROUNDED,
         border_style="peep.accent",
         padding=(1, 2),
@@ -997,6 +1295,26 @@ def interactive_loop() -> None:
     while True:
         print_menu()
         cmd = Prompt.ask(BRANDED_NAME, default="beefy peep all").strip().lower()
+        
+        # Handle keyboard shortcuts (Requirements 5.2, 5.3)
+        shortcut_map = {
+            "1": "peep all",
+            "2": "peep cpu",
+            "3": "peep io",
+            "4": "peep mem",
+            "5": "peep clutter",
+            "6": "peep watch",
+            "7": "baseline save",
+            "8": "baseline diff",
+            "s": "settings",
+            "h": "help",
+            "?": "help",
+        }
+        
+        # Map shortcut to full command
+        if cmd in shortcut_map:
+            cmd = shortcut_map[cmd]
+        
         # Allow users to type the same command they would type in the shell (teaches CLI-only usage).
         for prefix in ("beefy ", "peepbeefy "):
             if cmd.startswith(prefix):
@@ -1027,12 +1345,9 @@ def interactive_loop() -> None:
             )
             continue
 
-        # Settings (kept minimal; rookies shouldn't be spammed)
+        # Settings (comprehensive settings menu)
         if cmd in ("settings", "config"):
-            seconds = float(Prompt.ask("Sample seconds", default=str(seconds)))
-            limit = int(Prompt.ask("Rows to show", default=str(limit)))
-            include_windows = Confirm.ask("Include Windows system processes?", default=False)
-            fat_only = Confirm.ask("Fat-only mode (recommended)?", default=True)
+            show_settings_menu()
             continue
 
         # Parse baseline commands
@@ -1098,7 +1413,27 @@ def interactive_loop() -> None:
             continue
 
         # Unknown input
-        _error("Unknown command. Type 'help' to see options.")
+        # Improved error messages with suggestions (Requirements 5.6, 5.7)
+        _error(f"Unknown command: '{cmd}'")
+        
+        # Suggest similar commands using simple string matching
+        all_commands = [
+            "peep all", "peep cpu", "peep io", "peep mem", "peep clutter", "peep watch",
+            "baseline save", "baseline diff", "settings", "help", "quit"
+        ]
+        
+        # Find commands that start with the same letter or contain the input
+        suggestions = []
+        for command in all_commands:
+            if cmd and (command.startswith(cmd[0]) or cmd in command):
+                suggestions.append(command)
+        
+        if suggestions:
+            console.print(f"\n[peep.muted]Did you mean:[/peep.muted]")
+            for suggestion in suggestions[:3]:  # Show top 3 suggestions
+                console.print(f"  [peep.highlight]beefy {suggestion}[/peep.highlight]")
+        
+        console.print(f"\n[peep.muted]Type 'help' to see all commands, or use shortcuts like '1' for quick scan.[/peep.muted]")
 
 
 # --- CLI02 / CLI01 commands ---------------------------------------------------
@@ -1223,6 +1558,299 @@ def baseline_diff(
         console.print_json(json.dumps(d))
         return
     _render_diff(d, path)
+
+
+# --- Config commands ----------------------------------------------------------
+
+@config_app.command("show")
+def config_show():
+    """Display current configuration."""
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    
+    # Create a formatted table for configuration display
+    table = Table(box=box.ROUNDED, show_header=True, border_style="peep.accent")
+    table.add_column("Setting", style="peep.heading", no_wrap=True)
+    table.add_column("Value", style="peep.brand")
+    
+    # General settings
+    table.add_row("First Run Complete", str(config.first_run_complete))
+    table.add_row("Theme Variant", config.theme_variant)
+    
+    # Banner settings
+    table.add_row("", "")  # Separator
+    table.add_row("[bold]Banner Settings[/bold]", "")
+    table.add_row("  Mode", config.banner.mode)
+    table.add_row("  Selected Banner", config.banner.selected_banner or "(none)")
+    table.add_row("  Selected Categories", ", ".join(config.banner.selected_categories))
+    table.add_row("  Animation Enabled", str(config.banner.animation_enabled))
+    table.add_row("  Animation Duration", f"{config.banner.animation_duration}s")
+    table.add_row("  Animation FPS", str(config.banner.animation_fps))
+    table.add_row("  Animation Intensity", config.banner.animation_intensity)
+    
+    console.print()
+    console.print(Panel(
+        table,
+        title=f"{BRANDED_NAME} Configuration",
+        box=box.DOUBLE,
+        border_style="peep.accent",
+        padding=(1, 2)
+    ))
+    console.print()
+    console.print(f"[peep.muted]Config file: {config_manager.CONFIG_FILE}[/peep.muted]")
+    console.print()
+
+
+@config_app.command("set")
+def config_set(
+    key: str = typer.Argument(..., help="Configuration key to set (e.g., 'theme', 'banner.mode')"),
+    value: str = typer.Argument(..., help="Value to set"),
+):
+    """Set a configuration value."""
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    
+    # Parse the key path (support nested keys like "banner.mode")
+    key_parts = key.split(".")
+    
+    try:
+        if key == "theme" or key == "theme_variant":
+            # Validate theme
+            from themes import ThemeRegistry
+            available_themes = ThemeRegistry.list_themes()
+            if value not in available_themes:
+                _error(f"Invalid theme '{value}'. Available themes: {', '.join(available_themes)}")
+                raise typer.Exit(code=1)
+            config.theme_variant = value
+            _success(f"Theme set to: {value}")
+            
+        elif key == "banner.mode":
+            if value not in ["random", "fixed", "category"]:
+                _error(f"Invalid banner mode '{value}'. Must be: random, fixed, or category")
+                raise typer.Exit(code=1)
+            config.banner.mode = value
+            _success(f"Banner mode set to: {value}")
+            
+        elif key == "banner.selected_banner":
+            # Validate format CATEGORY:NAME
+            if ":" not in value:
+                _error(f"Invalid banner format '{value}'. Must be CATEGORY:NAME")
+                raise typer.Exit(code=1)
+            config.banner.selected_banner = value
+            _success(f"Selected banner set to: {value}")
+            
+        elif key == "banner.animation_enabled":
+            bool_value = value.lower() in ("true", "yes", "1", "on")
+            config.banner.animation_enabled = bool_value
+            _success(f"Animation enabled set to: {bool_value}")
+            
+        elif key == "banner.animation_duration":
+            try:
+                duration = float(value)
+                if not (0.5 <= duration <= 10.0):
+                    _error("Animation duration must be between 0.5 and 10.0 seconds")
+                    raise typer.Exit(code=1)
+                config.banner.animation_duration = duration
+                _success(f"Animation duration set to: {duration}s")
+            except ValueError:
+                _error(f"Invalid duration value '{value}'. Must be a number.")
+                raise typer.Exit(code=1)
+                
+        elif key == "banner.animation_fps":
+            try:
+                fps = int(value)
+                if not (4 <= fps <= 30):
+                    _error("Animation FPS must be between 4 and 30")
+                    raise typer.Exit(code=1)
+                config.banner.animation_fps = fps
+                _success(f"Animation FPS set to: {fps}")
+            except ValueError:
+                _error(f"Invalid FPS value '{value}'. Must be an integer.")
+                raise typer.Exit(code=1)
+                
+        elif key == "banner.animation_intensity":
+            if value not in ["subtle", "normal", "intense"]:
+                _error(f"Invalid intensity '{value}'. Must be: subtle, normal, or intense")
+                raise typer.Exit(code=1)
+            config.banner.animation_intensity = value
+            _success(f"Animation intensity set to: {value}")
+            
+        else:
+            _error(f"Unknown configuration key: {key}")
+            console.print("\n[peep.muted]Available keys:[/peep.muted]")
+            console.print("  theme, banner.mode, banner.selected_banner,")
+            console.print("  banner.animation_enabled, banner.animation_duration,")
+            console.print("  banner.animation_fps, banner.animation_intensity")
+            raise typer.Exit(code=1)
+        
+        # Save the updated configuration
+        config_manager.save(config)
+        
+    except typer.Exit:
+        raise
+    except Exception as e:
+        _error(f"Failed to set configuration: {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command("reset")
+def config_reset(
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+):
+    """Reset configuration to defaults."""
+    if not confirm:
+        confirmed = Confirm.ask(
+            f"[peep.warning]Reset all configuration to defaults?[/peep.warning]",
+            default=False
+        )
+        if not confirmed:
+            console.print("[peep.muted]Reset cancelled.[/peep.muted]")
+            return
+    
+    config_manager = ConfigManager()
+    
+    # Delete the config file
+    if config_manager.CONFIG_FILE.exists():
+        try:
+            config_manager.CONFIG_FILE.unlink()
+            _success("Configuration reset to defaults")
+        except Exception as e:
+            _error(f"Failed to reset configuration: {e}")
+            raise typer.Exit(code=1)
+    else:
+        console.print("[peep.muted]Configuration already at defaults (no config file found).[/peep.muted]")
+
+
+# --- Banner commands ----------------------------------------------------------
+
+@banner_app.command("preview")
+def banner_preview(
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category (e.g., ALT, 1ST_BEEFS)"),
+    page: int = typer.Option(1, "--page", "-p", help="Page number to display"),
+    animated: bool = typer.Option(False, "--animated", "-a", help="Show only animation-compatible banners"),
+):
+    """Show banner preview grid with pagination."""
+    from banner_preview import BannerPreview
+    
+    # Load configuration and theme
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    theme = ThemeRegistry.get_theme(config.theme_variant)
+    
+    # Load banners
+    assets_dir = Path(__file__).parent.parent / ".assets"
+    banner_db = BannerDatabase(assets_dir)
+    banner_dict = banner_db.load_banners()
+    
+    # Filter by category if specified
+    if category:
+        if category not in banner_dict:
+            _error(f"Category '{category}' not found")
+            console.print(f"\n[peep.muted]Available categories: {', '.join(banner_db.list_categories())}[/peep.muted]")
+            raise typer.Exit(code=1)
+        banners = banner_dict[category]
+    else:
+        # Get all banners from all categories
+        banners = []
+        for cat_banners in banner_dict.values():
+            banners.extend(cat_banners)
+    
+    # Create preview renderer and display
+    preview = BannerPreview(theme, console)
+    preview.display_grid(banners, page=page, filter_animated=animated)
+
+
+# --- Theme commands -----------------------------------------------------------
+
+@theme_app.command("set")
+def theme_set(
+    theme_name: str = typer.Argument(..., help="Theme name (e.g., CRT_Cyan, Amber_Terminal)"),
+    preview: bool = typer.Option(True, "--preview/--no-preview", help="Show theme preview before applying"),
+):
+    """Change the color theme."""
+    # Validate theme name
+    available_themes = ThemeRegistry.list_themes()
+    if theme_name not in available_themes:
+        _error(f"Theme '{theme_name}' not found")
+        console.print(f"\n[peep.muted]Available themes: {', '.join(available_themes)}[/peep.muted]")
+        raise typer.Exit(code=1)
+    
+    # Get the theme
+    theme = ThemeRegistry.get_theme(theme_name)
+    
+    # Show preview if requested
+    if preview:
+        console.print()
+        console.print(f"[bold]Theme Preview: {theme_name}[/bold]")
+        console.print()
+        
+        # Create a sample panel with the theme
+        sample_content = Text()
+        sample_content.append("Primary Color\n", style=Style(color=theme.palette.primary))
+        sample_content.append("Highlight Color\n", style=Style(color=theme.palette.highlight, bold=True))
+        sample_content.append("Success Color\n", style=Style(color=theme.palette.success))
+        sample_content.append("Error Color\n", style=Style(color=theme.palette.error))
+        sample_content.append("Warning Color\n", style=Style(color=theme.palette.warning))
+        sample_content.append("Dim Color\n", style=Style(color=theme.palette.dim))
+        sample_content.append("Text Color", style=Style(color=theme.palette.text))
+        
+        sample_panel = Panel(
+            sample_content,
+            title=f"Theme: {theme_name}",
+            box=theme.get_box_style(),
+            border_style=theme.get_border_style(),
+            padding=(1, 2)
+        )
+        console.print(sample_panel)
+        console.print()
+        
+        # Ask for confirmation
+        confirmed = Confirm.ask(f"Apply theme '{theme_name}'?", default=True)
+        if not confirmed:
+            console.print("[peep.muted]Theme change cancelled.[/peep.muted]")
+            return
+    
+    # Apply the theme
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    config.theme_variant = theme_name
+    config_manager.save(config)
+    
+    _success(f"Theme set to: {theme_name}")
+
+
+@theme_app.command("list")
+def theme_list():
+    """List all available themes."""
+    available_themes = ThemeRegistry.list_themes()
+    
+    # Load current theme
+    config_manager = ConfigManager()
+    config = config_manager.load()
+    current_theme = config.theme_variant
+    
+    console.print()
+    console.print("[bold]Available Themes:[/bold]")
+    console.print()
+    
+    for theme_name in available_themes:
+        theme = ThemeRegistry.get_theme(theme_name)
+        
+        # Mark current theme
+        marker = "→ " if theme_name == current_theme else "  "
+        
+        # Create a small color sample
+        sample = Text()
+        sample.append("█", style=Style(color=theme.palette.primary))
+        sample.append("█", style=Style(color=theme.palette.highlight))
+        sample.append("█", style=Style(color=theme.palette.success))
+        sample.append("█", style=Style(color=theme.palette.warning))
+        sample.append("█", style=Style(color=theme.palette.error))
+        
+        console.print(f"{marker}{theme_name:20} ", end="")
+        console.print(sample)
+    
+    console.print()
 
 
 @dev_app.command("dump")
