@@ -16,7 +16,7 @@ def test_load_banners_from_real_file():
     db = BannerDatabase(assets_dir)
     
     # Act
-    banners = db.load_banners()
+    banners = db.load_banners(force_reload=True)
     
     # Assert
     assert len(banners) > 0, "Should load at least one category"
@@ -58,7 +58,7 @@ def test_multiple_categories_parsed():
     db = BannerDatabase(assets_dir)
     
     # Act
-    banners = db.load_banners()
+    banners = db.load_banners(force_reload=True)
     
     # Assert
     expected_categories = ["1ST_BEEFS", "ALT", "CURSIVE"]

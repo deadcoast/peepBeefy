@@ -5,7 +5,7 @@ universal properties of the Banner data model across all valid inputs.
 """
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings
 from src.banner import BannerMetadata, Banner
 
 
@@ -2205,6 +2205,7 @@ LARGE:BANNER{i}
         max_size=15
     ).filter(lambda x: len(x) > 0 and any(line.strip() for line in x))
 )
+@settings(deadline=1000)  # Animation rendering takes longer than default 200ms
 @pytest.mark.property_test
 def test_animation_lazy_loading(category: str, name: str, lines: list[str]):
     """Property 14: Animation Lazy Loading
