@@ -8489,3 +8489,6 @@ Exception: Animation failed
 [2026-02-21 19:40:30] [INFO] [main] Selected random banner from all categories
 [2026-02-21 19:40:30] [INFO] [main] Rendering animated banner: duration=10.0s, fps=30, intensity=normal
 [2026-02-21 19:40:35] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-22 00:17:58] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-22 00:18:15] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-22 00:18:20] [INFO] [logging_config] Logging initialized (level=INFO)

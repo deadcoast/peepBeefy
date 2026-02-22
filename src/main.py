@@ -1245,6 +1245,110 @@ def show_settings_menu() -> None:
             _error("Invalid option. Please select 1-5 or B.")
 
 
+def _handle_unknown_command(cmd: str) -> None:
+    """Handle unknown commands with helpful suggestions (Requirements 5.6, 5.7).
+    
+    Provides "Did you mean...?" suggestions for typos using fuzzy matching,
+    and shows the full command syntax to teach CLI-only usage.
+    
+    Args:
+        cmd: The unknown command entered by the user
+    """
+    # Define all valid commands
+    valid_commands = [
+        "peep all", "peep cpu", "peep io", "peep mem", "peep clutter", "peep watch",
+        "baseline save", "baseline diff",
+        "settings",
+        "help", "quit",
+        # Also include shortcuts
+        "all", "cpu", "io", "mem", "clutter", "watch",
+        "save", "diff",
+        "1", "2", "3", "4", "5", "6", "7", "8", "s", "h", "q",
+    ]
+    
+    # Find close matches using simple edit distance
+    def levenshtein_distance(s1: str, s2: str) -> int:
+        """Calculate Levenshtein distance between two strings."""
+        if len(s1) < len(s2):
+            return levenshtein_distance(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+        
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        
+        return previous_row[-1]
+    
+    # Find suggestions (commands within edit distance of 2)
+    suggestions = []
+    for valid_cmd in valid_commands:
+        distance = levenshtein_distance(cmd.lower(), valid_cmd.lower())
+        if distance <= 2 and distance > 0:
+            suggestions.append((distance, valid_cmd))
+    
+    # Sort by distance (closest first)
+    suggestions.sort(key=lambda x: x[0])
+    
+    # Build error message
+    error_msg = Text()
+    error_msg.append(f"Unknown command: ", style="peep.error")
+    error_msg.append(f"{cmd}\n\n", style="bold")
+    
+    if suggestions:
+        error_msg.append("Did you mean?\n", style="peep.warning")
+        for _, suggestion in suggestions[:3]:  # Show top 3 suggestions
+            # Show full command syntax (teaching approach)
+            if suggestion in ["all", "cpu", "io", "mem", "clutter", "watch"]:
+                full_cmd = f"beefy peep {suggestion}"
+            elif suggestion in ["save", "diff"]:
+                full_cmd = f"beefy baseline {suggestion}"
+            elif suggestion in ["1", "2", "3", "4", "5", "6", "7", "8"]:
+                # Map shortcuts to full commands
+                shortcut_to_cmd = {
+                    "1": "beefy peep all",
+                    "2": "beefy peep cpu",
+                    "3": "beefy peep io",
+                    "4": "beefy peep mem",
+                    "5": "beefy peep clutter",
+                    "6": "beefy peep watch",
+                    "7": "beefy baseline save",
+                    "8": "beefy baseline diff",
+                }
+                full_cmd = shortcut_to_cmd.get(suggestion, suggestion)
+            elif suggestion in ["s", "h", "q"]:
+                shortcut_to_cmd = {
+                    "s": "settings",
+                    "h": "help",
+                    "q": "quit",
+                }
+                full_cmd = shortcut_to_cmd.get(suggestion, suggestion)
+            elif suggestion.startswith("peep ") or suggestion.startswith("baseline "):
+                full_cmd = f"beefy {suggestion}"
+            else:
+                full_cmd = suggestion
+            
+            error_msg.append(f"  → {full_cmd}\n", style="peep.heading")
+    else:
+        error_msg.append("Type ", style="peep.muted")
+        error_msg.append("help", style="peep.heading")
+        error_msg.append(" to see available commands.", style="peep.muted")
+    
+    console.print(Panel(
+        error_msg,
+        title="[peep.error]Command Not Found[/peep.error]",
+        border_style="red",
+        box=box.ROUNDED,
+        padding=(1, 2)
+    ))
+
+
 def print_menu() -> None:
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("", width=3, style="peep.accent", no_wrap=True)
@@ -1270,6 +1374,11 @@ def print_menu() -> None:
 
 
 def interactive_loop() -> None:
+    # Initialize command history (Requirements 5.4, 5.5)
+    from command_history import CommandHistory
+    history_file = Path.home() / ".peepbeefy" / "command_history.json"
+    command_history = CommandHistory(max_size=100, history_file=history_file)
+    
     # Check for first-run and launch wizard if needed
     try:
         config_manager = ConfigManager()
@@ -1337,7 +1446,18 @@ def interactive_loop() -> None:
 
     while True:
         print_menu()
+        
+        # Show recent commands if history exists (Requirements 5.5)
+        if command_history:
+            recent = command_history.get_recent(count=3)
+            if recent:
+                recent_text = " | ".join(recent[:3])
+                console.print(f"[peep.muted]Recent: {recent_text}[/peep.muted]")
+        
         cmd = Prompt.ask(BRANDED_NAME, default="beefy peep all").strip().lower()
+        
+        # Store original command before processing
+        original_cmd = cmd
 
         # Handle keyboard shortcuts (Requirements 5.2, 5.3)
         shortcut_map = {
@@ -1364,6 +1484,10 @@ def interactive_loop() -> None:
                 cmd = cmd[len(prefix):].lstrip()
                 break
 
+        # Add command to history (Requirements 5.4, 5.5)
+        # Store the processed command for better history
+        if cmd not in ("q", "quit", "exit"):
+            command_history.add(cmd)
 
         if cmd in ("q", "quit", "exit"):
             console.print(Text("Later \U0001f44b", style="peep.heading"))
@@ -1435,7 +1559,8 @@ def interactive_loop() -> None:
             )
 
         else:
-            _error(f"Unknown command: {cmd}. Type 'help' for available commands.")
+            # Improved error messages with suggestions (Requirements 5.6, 5.7)
+            _handle_unknown_command(cmd)
 
 
 # --- CLI02 / CLI01 commands ---------------------------------------------------
