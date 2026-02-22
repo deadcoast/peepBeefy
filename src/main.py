@@ -981,10 +981,9 @@ def show_settings_menu() -> None:
     - Animation settings
     - Reconfigure (re-run setup wizard)
     """
-    from src.config import ConfigManager, AppConfig, BannerConfig
-    from src.themes import ThemeRegistry
-    from src.banner import BannerDatabase
-    from pathlib import Path
+    from config import ConfigManager, AppConfig, BannerConfig
+    from themes import ThemeRegistry
+    from banner import BannerDatabase
     
     config_manager = ConfigManager()
     config = config_manager.load()
@@ -1129,14 +1128,14 @@ def show_settings_menu() -> None:
         
         elif choice == "2":
             # Change theme
-            from src.wizard import show_theme_preview
+            from wizard import show_theme_preview
             
             themes = ThemeRegistry.list_themes()
             console.print("\n[bold white]Available Themes:[/]")
             
             for i, theme_name in enumerate(themes, 1):
                 console.print(f"\n[{i}] {theme_name}")
-                show_theme_preview(theme_name)
+                show_theme_preview(theme_name, console)
             
             theme_choice = Prompt.ask(
                 "Select theme number",
@@ -1221,13 +1220,22 @@ def show_settings_menu() -> None:
         
         elif choice == "5":
             # Reconfigure - re-run setup wizard
-            from src.wizard import run_setup_wizard
+            from wizard import run_setup_wizard
             
             console.print("\n[bold white]Re-running Setup Wizard[/]")
             console.print("[peep.muted]Your current settings will be used as defaults[/]")
             
             if Confirm.ask("Continue?", default=True):
-                new_config = run_setup_wizard(current_config=config)
+                # Initialize banner database for wizard
+                assets_dir = Path(__file__).parent.parent / ".assets"
+                banner_db = BannerDatabase(assets_dir)
+                
+                # Create wizard instance
+                from wizard import SetupWizard
+                wizard = SetupWizard(console, banner_db)
+                
+                # Run wizard
+                new_config = wizard.run()
                 config_manager.save(new_config)
                 config = new_config
                 _success("Configuration updated")
@@ -1262,11 +1270,54 @@ def print_menu() -> None:
 
 
 def interactive_loop() -> None:
+    # Check for first-run and launch wizard if needed
+    try:
+        config_manager = ConfigManager()
+
+        if config_manager.is_first_run():
+            logger.info("First run detected, launching setup wizard")
+
+            # Initialize banner database for wizard
+            assets_dir = Path(__file__).parent.parent / ".assets"
+            banner_db = BannerDatabase(assets_dir)
+
+            # Import and run wizard
+            from wizard import SetupWizard
+            wizard = SetupWizard(console, banner_db)
+
+            try:
+                # Run wizard and get configuration
+                config = wizard.run()
+
+                # Save configuration
+                config_manager.save(config)
+                logger.info("First-run configuration saved")
+
+            except KeyboardInterrupt:
+                # User skipped wizard - save default config
+                logger.info("Wizard skipped, saving default configuration")
+                default_config = AppConfig(
+                    version=1,
+                    first_run_complete=True,
+                    theme_variant="CRT_Cyan",
+                    banner=BannerConfig(),
+                    user_preferences={}
+                )
+                config_manager.save(default_config)
+
+            # Clear screen after wizard
+            console.clear()
+
+    except Exception as e:
+        # If wizard fails, log error and continue with defaults
+        logger.error(f"Setup wizard failed: {e}", exc_info=True)
+        console.print(f"[yellow]Setup wizard encountered an error. Using defaults.[/]")
+
     print_header()
     console.print(
         Panel(
             Text(
-                "New user mode: you don’t need flags.\n"
+                "New user mode: you don't need flags.\n"
                 "Just type a short command like: beefy peep all\n\n"
                 "Tip: Run Windows Terminal as Administrator for more details.",
                 style="white",
@@ -1287,7 +1338,7 @@ def interactive_loop() -> None:
     while True:
         print_menu()
         cmd = Prompt.ask(BRANDED_NAME, default="beefy peep all").strip().lower()
-        
+
         # Handle keyboard shortcuts (Requirements 5.2, 5.3)
         shortcut_map = {
             "1": "peep all",
@@ -1302,11 +1353,11 @@ def interactive_loop() -> None:
             "h": "help",
             "?": "help",
         }
-        
+
         # Map shortcut to full command
         if cmd in shortcut_map:
             cmd = shortcut_map[cmd]
-        
+
         # Allow users to type the same command they would type in the shell (teaches CLI-only usage).
         for prefix in ("beefy ", "peepbeefy "):
             if cmd.startswith(prefix):
@@ -1318,16 +1369,63 @@ def interactive_loop() -> None:
             console.print(Text("Later \U0001f44b", style="peep.heading"))
             return
 
-        if cmd in ("help", "?"):
+
+        # ─────────────────────────────────────────────────────────────────────
+        # PEEP commands
+        # ─────────────────────────────────────────────────────────────────────
+        if cmd in ("peep all", "all", "a"):
+            peep_all(seconds, limit, include_windows, include_services, fat_only)
+
+        elif cmd in ("peep cpu", "cpu", "c"):
+            peep_cpu(seconds, limit, include_windows, include_services, fat_only)
+
+        elif cmd in ("peep io", "io", "i"):
+            peep_io(seconds, limit, include_windows, include_services, fat_only)
+
+        elif cmd in ("peep mem", "mem", "m"):
+            peep_mem(seconds, limit, include_windows, include_services, fat_only)
+
+        elif cmd in ("peep clutter", "clutter", "cl"):
+            peep_clutter(seconds, limit, include_windows, include_services, fat_only)
+
+        elif cmd in ("peep watch", "watch", "w"):
+            peep_watch(seconds, limit, include_windows, include_services, fat_only)
+
+        # ─────────────────────────────────────────────────────────────────────
+        # BASELINE commands
+        # ─────────────────────────────────────────────────────────────────────
+        elif cmd in ("baseline save", "save", "bs"):
+            baseline_save(include_windows)
+
+        elif cmd in ("baseline diff", "diff", "bd"):
+            baseline_diff(include_windows, limit)
+
+        # ─────────────────────────────────────────────────────────────────────
+        # SETTINGS command
+        # ─────────────────────────────────────────────────────────────────────
+        elif cmd in ("settings", "s"):
+            show_settings_menu()
+
+        # ─────────────────────────────────────────────────────────────────────
+        # HELP command
+        # ─────────────────────────────────────────────────────────────────────
+        elif cmd in ("help", "h", "?"):
             console.print(
                 Panel(
                     Text(
-                        "Commands you can type:\n"
-                        "- peep all | cpu | io | mem | clutter | watch\n"
-                        "- baseline save <file>\n"
-                        "- baseline diff <file>\n\n"
-                        "This version does NOT end processes.\n"
-                        "It helps you *see* what is hogging CPU/RAM/Disk and which ones are Services.",
+                        "Available commands:\n\n"
+                        "  peep all      - Show all heavy processes\n"
+                        "  peep cpu      - Show CPU-heavy processes\n"
+                        "  peep io       - Show I/O-heavy processes\n"
+                        "  peep mem      - Show memory-heavy processes\n"
+                        "  peep clutter  - Show processes with many instances\n"
+                        "  peep watch    - Continuous monitoring mode\n\n"
+                        "  baseline save - Save current state as baseline\n"
+                        "  baseline diff - Compare current state to baseline\n\n"
+                        "  settings      - Configure peepBeefy preferences\n\n"
+                        "  help          - Show this help message\n"
+                        "  quit          - Exit peepBeefy\n\n"
+                        "Tip: You can use shortcuts like '1' for 'peep all', 's' for 'settings'",
                         style="white",
                     ),
                     title="Help",
@@ -1335,97 +1433,9 @@ def interactive_loop() -> None:
                     box=box.SQUARE,
                 )
             )
-            continue
 
-        # Settings (comprehensive settings menu)
-        if cmd in ("settings", "config"):
-            show_settings_menu()
-            continue
-
-        # Parse baseline commands
-        if cmd.startswith("baseline "):
-            parts = cmd.split()
-            if len(parts) >= 2 and parts[1] == "save":
-                file = Prompt.ask("Baseline file name", default="baseline.json")
-                path = Path(file).expanduser().resolve()
-                snapshot_to_file(path, include_windows=include_windows)
-                _success(f"Saved baseline to: {path}")
-                continue
-            if len(parts) >= 2 and parts[1] == "diff":
-                file = Prompt.ask("Baseline file name", default="baseline.json")
-                path = Path(file).expanduser().resolve()
-                if not path.exists():
-                    _error(f"Baseline not found: {path}")
-                    continue
-                d = diff_from_file(path, include_windows=include_windows)
-                _render_diff(d, path, new_limit=30, gone_limit=15)
-                continue
-
-        # peep commands
-        if cmd.startswith("peep"):
-            parts = cmd.split()
-            mode = parts[1] if len(parts) >= 2 else "all"
-
-            if mode == "watch":
-                watch_seconds = float(Prompt.ask("Sample seconds per refresh", default=str(seconds)))
-                refresh = float(Prompt.ask("Refresh interval (seconds)", default="1.0"))
-                loops = int(Prompt.ask("How many refreshes? (Ctrl+C to exit early)", default="60"))
-                sort_key = "beef"
-                with Live(console=console, refresh_per_second=4) as live:
-                    try:
-                        for i in range(loops):
-                            rows = collect_samples(seconds=watch_seconds, include_windows=include_windows, include_services=include_services)
-                            # fat mode inside watch is very helpful
-                            if fat_only:
-                                rows = [r for r in rows if (r.cpu_pct >= 3.0 or (r.read_bps + r.write_bps) >= 2 * (1024 ** 2) or (r.rss_bytes / (1024 ** 2)) >= 600)]
-                            rows.sort(key=lambda r: r.beef_score, reverse=True)
-                            table = build_table(rows, title=f"{APP_NAME} Watch — Top BEEF (refresh {i+1}/{loops})", limit=limit)
-                            live.update(table)
-                            time.sleep(max(0.2, refresh))
-                    except KeyboardInterrupt:
-                        pass
-                continue
-
-            # Normal peep modes
-            rows = _sampled(seconds=seconds, include_windows=include_windows, include_services=include_services)
-
-            if mode == "cpu":
-                render_rows(rows, sort_key="cpu", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — CPU Hog Finder")
-            elif mode == "io":
-                render_rows(rows, sort_key="io", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — Disk Hog Finder")
-            elif mode == "mem":
-                render_rows(rows, sort_key="mem", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — RAM Hog Finder")
-            elif mode == "clutter":
-                clutter = [r for r in rows if r.tags]
-                # Sort by beef so the "cloggy" clutter floats
-                clutter.sort(key=lambda r: r.beef_score, reverse=True)
-                render_rows(clutter, sort_key="beef", limit=limit, fat_only=False, title=f"{APP_NAME} — Gamer Clutter (tagged)")
-            else:
-                render_rows(rows, sort_key="beef", limit=limit, fat_only=fat_only, title=f"{APP_NAME} — Quick Scan (BEEF Score)")
-            continue
-
-        # Unknown input
-        # Improved error messages with suggestions (Requirements 5.6, 5.7)
-        _error(f"Unknown command: '{cmd}'")
-        
-        # Suggest similar commands using simple string matching
-        all_commands = [
-            "peep all", "peep cpu", "peep io", "peep mem", "peep clutter", "peep watch",
-            "baseline save", "baseline diff", "settings", "help", "quit"
-        ]
-        
-        # Find commands that start with the same letter or contain the input
-        suggestions = []
-        for command in all_commands:
-            if cmd and (command.startswith(cmd[0]) or cmd in command):
-                suggestions.append(command)
-        
-        if suggestions:
-            console.print(f"\n[peep.muted]Did you mean:[/peep.muted]")
-            for suggestion in suggestions[:3]:  # Show top 3 suggestions
-                console.print(f"  [peep.highlight]beefy {suggestion}[/peep.highlight]")
-        
-        console.print(f"\n[peep.muted]Type 'help' to see all commands, or use shortcuts like '1' for quick scan.[/peep.muted]")
+        else:
+            _error(f"Unknown command: {cmd}. Type 'help' for available commands.")
 
 
 # --- CLI02 / CLI01 commands ---------------------------------------------------

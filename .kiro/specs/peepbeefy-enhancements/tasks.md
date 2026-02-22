@@ -290,80 +290,80 @@ The implementation will use **Python** with the Rich library for terminal render
 - [x] 10. Checkpoint - Phase 2 Complete
   - Ensure all Phase 2 tests pass, verify fire animation works on banners, confirm performance meets <200ms target with caching. Ask the user if questions arise.
 
-- [ ] 11. Phase 3: Interactive Configuration - First-Run Wizard
-  - [ ] 11.1 Implement first-run detection in ConfigManager
+- [x] 11. Phase 3: Interactive Configuration - First-Run Wizard
+  - [x] 11.1 Implement first-run detection in ConfigManager
     - Update `is_first_run()` to check for missing config file
     - Add `mark_first_run_complete()` method to set flag
     - _Requirements: 12.1_
   
-  - [ ] 11.2 Create setup wizard module (wizard.py)
+  - [x] 11.2 Create setup wizard module (wizard.py)
     - Create `SetupWizard` class with console parameter
     - Implement welcome screen with Panel display
     - Implement step-by-step configuration flow
     - Return completed AppConfig object
     - _Requirements: 12.2, 12.3, 12.6_
   
-  - [ ] 11.3 Implement theme selection in wizard
+  - [x] 11.3 Implement theme selection in wizard
     - Display all available themes with visual previews
     - Show sample panel for each theme with colors
     - Use Rich Prompt for user selection
     - Default to CRT_Cyan if user skips
     - _Requirements: 7.6, 12.3_
   
-  - [ ] 11.4 Implement banner mode selection in wizard
+  - [x] 11.4 Implement banner mode selection in wizard
     - Present options: random, fixed, category
     - Explain each mode with descriptions
     - Show banner preview for fixed mode selection
     - Allow category filtering for category mode
     - _Requirements: 2.2, 2.3, 2.4, 12.3_
   
-  - [ ] 11.5 Implement animation preferences in wizard
+  - [x] 11.5 Implement animation preferences in wizard
     - Ask if user wants animations enabled
     - If enabled, ask for intensity level (subtle, normal, intense)
     - Show brief animation preview for each intensity
     - _Requirements: 3.6, 11.6, 12.3_
   
-  - [ ] 11.6 Add progress indicator to wizard
+  - [x] 11.6 Add progress indicator to wizard
     - Display step numbers (Step 1/3, Step 2/3, etc.)
     - Show progress bar or step indicator
     - Allow skipping to use defaults
     - _Requirements: 12.5_
   
-  - [ ] 11.7 Integrate wizard into main.py startup
+  - [x] 11.7 Integrate wizard into main.py startup
     - Check `is_first_run()` before normal startup
     - Launch wizard if first run detected
     - Save configuration after wizard completes
     - Mark first run as complete
     - _Requirements: 12.1, 12.2, 12.6_
   
-  - [ ] 11.8 Write integration test for first-run wizard
+  - [x] 11.8 Write integration test for first-run wizard
     - Test wizard launches on first run
     - Test configuration is saved after wizard
     - Test wizard can be skipped
     - _Requirements: 12.1, 12.2, 12.6_
 
-- [ ] 12. Phase 3: Interactive Configuration - Settings Menu
-  - [ ] 12.1 Add Settings menu option to CLI03
+- [x] 12. Phase 3: Interactive Configuration - Settings Menu
+  - [x] 12.1 Add Settings menu option to CLI03
     - Add "Settings" menu item to interactive menu
     - Implement settings submenu with configuration options
     - Display current configuration values
     - _Requirements: 5.1_
   
-  - [ ] 12.2 Implement banner configuration in settings menu
+  - [x] 12.2 Implement banner configuration in settings menu
     - Add "Change Banner Mode" option
     - Add "Select Fixed Banner" option (when mode is fixed)
     - Add "Filter Categories" option (when mode is category)
     - Show current banner mode and selection
     - _Requirements: 2.2, 2.3, 2.4_
   
-  - [ ] 12.3 Implement theme configuration in settings menu
+  - [x] 12.3 Implement theme configuration in settings menu
     - Add "Change Theme" option
     - Display theme previews before selection
     - Apply theme immediately after selection
     - Save theme preference to config
     - _Requirements: 7.5, 7.6_
   
-  - [ ] 12.4 Implement animation configuration in settings menu
+  - [x] 12.4 Implement animation configuration in settings menu
     - Add "Toggle Animation" option
     - Add "Animation Intensity" option
     - Add "Animation Duration" option
@@ -371,12 +371,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Validate input ranges and show helpful errors
     - _Requirements: 3.6, 11.1, 11.2, 11.6_
   
-  - [ ] 12.5 Add "Reconfigure" option to settings menu
+  - [x] 12.5 Add "Reconfigure" option to settings menu
     - Add option to re-run setup wizard
     - Preserve current config as defaults in wizard
     - _Requirements: 12.7_
   
-  - [ ] 12.6 Write unit tests for settings menu
+  - [x] 12.6 Write unit tests for settings menu
     - Test menu displays current configuration
     - Test configuration changes are saved
     - Test input validation works correctly

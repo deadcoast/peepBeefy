@@ -1,516 +1,519 @@
-"""Setup wizard for first-run configuration.
+"""
+First-run setup wizard for peepBeefy.
 
-This module provides an interactive setup wizard that guides users through
-configuring peepBeefy on their first run, including theme selection, banner
-mode selection, and animation preferences.
+This module provides an interactive configuration wizard that guides users
+through initial setup, including theme selection, banner mode configuration,
+and animation preferences.
 """
 
-from pathlib import Path
-from typing import Optional
 import logging
+from typing import Optional
+from pathlib import Path
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.text import Text
-from rich.style import Style
 from rich import box
 
 from config import AppConfig, BannerConfig
 from themes import ThemeRegistry, Theme
-from banner import BannerDatabase, BannerRenderer
+from banner import BannerDatabase
 
 logger = logging.getLogger(__name__)
 
 
 def show_theme_preview(theme_name: str, console: Optional[Console] = None) -> None:
-    """Display a preview of a theme's colors.
+    """Display a visual preview of a theme by name.
+    
+    This is a standalone function that can be used outside the wizard
+    for showing theme previews in the settings menu.
     
     Args:
         theme_name: Name of the theme to preview
-        console: Optional Console instance (creates new one if not provided)
+        console: Optional Rich Console instance (creates new one if not provided)
     """
     if console is None:
         console = Console()
     
     theme = ThemeRegistry.get_theme(theme_name)
     
-    # Create sample panel with theme colors
-    sample_text = Text()
-    sample_text.append("Primary ", style=Style(color=theme.palette.primary))
-    sample_text.append("• ")
-    sample_text.append("Highlight ", style=Style(color=theme.palette.highlight, bold=True))
-    sample_text.append("• ")
-    sample_text.append("Success ", style=Style(color=theme.palette.success))
-    sample_text.append("• ")
-    sample_text.append("Warning", style=Style(color=theme.palette.warning))
+    # Create sample content with theme colors
+    preview_text = Text()
+    preview_text.append(theme.name.replace("_", " "), style=f"bold {theme.palette.primary}")
+    preview_text.append("\n\n", style="white")
     
+    # Show color samples
+    preview_text.append("Primary: ", style="dim white")
+    preview_text.append("████ ", style=theme.palette.primary)
+    preview_text.append("Highlight: ", style="dim white")
+    preview_text.append("████ ", style=theme.palette.highlight)
+    preview_text.append("\n")
+    
+    preview_text.append("Success: ", style="dim white")
+    preview_text.append("████ ", style=theme.palette.success)
+    preview_text.append("Error: ", style="dim white")
+    preview_text.append("████ ", style=theme.palette.error)
+    
+    # Create panel with theme styling
     panel = Panel(
-        sample_text,
-        title=f"[bold]{theme_name}[/bold]",
-        box=theme.get_box_style(),
-        border_style=theme.get_border_style(),
+        preview_text,
+        border_style=theme.palette.primary,
+        box=box.DOUBLE,
         padding=(0, 1)
     )
     
     console.print(panel)
 
 
-def run_setup_wizard(current_config: Optional[AppConfig] = None, console: Optional[Console] = None) -> AppConfig:
-    """Run the setup wizard and return the configured AppConfig.
-    
-    Args:
-        current_config: Optional existing config to use as defaults
-        console: Optional Console instance (creates new one if not provided)
-        
-    Returns:
-        Configured AppConfig instance
-    """
-    if console is None:
-        console = Console()
-    
-    wizard = SetupWizard(console)
-    return wizard.run(current_config=current_config)
-
-
 class SetupWizard:
-    """Interactive setup wizard for first-run configuration.
+    """Interactive first-run setup wizard for peepBeefy configuration.
     
-    Guides users through a step-by-step configuration process with visual
-    previews and helpful descriptions. Follows the hyfetch-inspired pattern
-    for interactive configuration.
+    The wizard guides users through:
+    1. Theme selection with visual previews
+    2. Banner mode configuration (random, fixed, category)
+    3. Animation preferences (enabled, intensity)
     
     Attributes:
         console: Rich Console instance for rendering
-        _assets_dir: Path to the assets directory for banner previews
+        _banner_db: BannerDatabase instance for banner previews
     """
     
-    def __init__(self, console: Console, assets_dir: Optional[Path] = None):
+    def __init__(self, console: Console, banner_db: Optional[BannerDatabase] = None):
         """Initialize the setup wizard.
         
         Args:
             console: Rich Console instance for rendering
-            assets_dir: Optional path to assets directory, defaults to .assets
+            banner_db: Optional BannerDatabase instance for banner previews
         """
         self.console = console
-        self._assets_dir = assets_dir or (Path(__file__).parent.parent / ".assets")
-    
-    def run(self, current_config: Optional[AppConfig] = None) -> AppConfig:
+        self._banner_db = banner_db
+        
+    def run(self) -> AppConfig:
         """Run the complete setup wizard flow.
         
-        Displays welcome screen and guides user through configuration steps:
-        1. Theme selection
-        2. Banner mode selection
-        3. Animation preferences
-        
-        Users can skip the wizard to use default settings.
-        
-        Args:
-            current_config: Optional existing config to use as defaults
-        
         Returns:
-            Completed AppConfig object with user selections
+            AppConfig object with user's selected preferences
         """
-        # Display welcome screen
-        skip = self._show_welcome()
+        logger.info("Starting first-run setup wizard")
         
-        # If user wants to skip, return default config
-        if skip:
-            logger.info("User skipped setup wizard, using defaults")
+        try:
+            # Display welcome screen
+            self._show_welcome()
+            
+            # Step 1: Theme selection
+            theme_variant = self._select_theme()
+            
+            # Step 2: Banner mode selection
+            banner_config = self._select_banner_mode()
+            
+            # Step 3: Animation preferences
+            animation_config = self._select_animation_preferences()
+            
+            # Merge animation config into banner config
+            banner_config.animation_enabled = animation_config["enabled"]
+            banner_config.animation_intensity = animation_config["intensity"]
+            banner_config.animation_duration = animation_config.get("duration", 3.0)
+            banner_config.animation_fps = animation_config.get("fps", 8)
+            
+            # Build final configuration
+            config = AppConfig(
+                version=1,
+                first_run_complete=True,
+                theme_variant=theme_variant,
+                banner=banner_config,
+                user_preferences={}
+            )
+            
+            # Show completion message
+            self._show_completion()
+            
+            logger.info("Setup wizard completed successfully")
+            return config
+            
+        except KeyboardInterrupt:
+            # User skipped wizard - return default config
+            logger.info("Setup wizard skipped by user, using defaults")
+            self.console.print()
+            self.console.print("[yellow]Setup skipped. Using default configuration.[/]")
+            self.console.print()
+            
             return AppConfig(
                 version=1,
                 first_run_complete=True,
                 theme_variant="CRT_Cyan",
-                banner=BannerConfig(
-                    mode="random",
-                    selected_banner=None,
-                    selected_categories=["1ST_BEEFS"],
-                    animation_enabled=True,
-                    animation_duration=3.0,
-                    animation_fps=8,
-                    animation_intensity="normal"
-                )
+                banner=BannerConfig(),
+                user_preferences={}
             )
-        
-        # Step 1: Theme selection
-        theme_variant = self._select_theme()
-        
-        # Step 2: Banner mode selection
-        banner_mode, selected_banner, selected_categories = self._select_banner_mode()
-        
-        # Step 3: Animation preferences
-        animation_enabled, animation_intensity = self._select_animation_preferences()
-        
-        # Build configuration
-        config = AppConfig(
-            version=1,
-            first_run_complete=True,
-            theme_variant=theme_variant,
-            banner=BannerConfig(
-                mode=banner_mode,
-                selected_banner=selected_banner,
-                selected_categories=selected_categories,
-                animation_enabled=animation_enabled,
-                animation_duration=3.0,
-                animation_fps=8,
-                animation_intensity=animation_intensity
-            )
-        )
-        
-        # Show completion message
-        self._show_completion()
-        
-        return config
     
-    def _show_welcome(self) -> bool:
-        """Display welcome screen with Panel and skip option.
-        
-        Returns:
-            True if user wants to skip wizard, False otherwise
-        """
-        self.console.clear()
-        
+    def _show_welcome(self) -> None:
+        """Display welcome screen with setup wizard introduction."""
         welcome_text = Text()
-        welcome_text.append("Welcome to ", style="bold")
+        welcome_text.append("Welcome to ", style="white")
         welcome_text.append("peepBeefy", style="bold cyan")
-        welcome_text.append(" Setup!\n\n", style="bold")
+        welcome_text.append("!\n\n", style="white")
         welcome_text.append(
             "This wizard will help you configure your peepBeefy experience.\n"
-            "You can change these settings later from the Settings menu.\n\n",
-            style="dim"
-        )
-        welcome_text.append(
-            "Press Enter to continue, or type 'skip' to use default settings...",
-            style="dim"
+            "You can change these settings later in the Settings menu.\n\n"
+            "Press Enter to continue or Ctrl+C to skip and use defaults.",
+            style="dim white"
         )
         
         panel = Panel(
             welcome_text,
-            title="[bold cyan]First-Run Setup[/bold cyan]",
-            box=box.DOUBLE,
+            title="[bold cyan]Setup Wizard[/]",
             border_style="cyan",
+            box=box.DOUBLE,
             padding=(1, 2)
         )
         
         self.console.print(panel)
+        self.console.print()
         
-        # Allow user to skip
-        response = self.console.input().strip().lower()
-        return response == "skip"
+        # Wait for user to press Enter
+        try:
+            input()
+        except KeyboardInterrupt:
+            logger.info("Setup wizard skipped by user")
+            raise
     
     def _show_completion(self) -> None:
-        """Display completion message."""
+        """Display completion message after wizard finishes."""
         completion_text = Text()
-        completion_text.append("Setup Complete!\n\n", style="bold green")
+        completion_text.append("Setup Complete!", style="bold green")
+        completion_text.append("\n\n", style="white")
         completion_text.append(
-            "Your preferences have been saved. Enjoy peepBeefy!\n\n"
-            "You can reconfigure anytime from the Settings menu.",
-            style="dim"
+            "Your preferences have been saved.\n"
+            "You can change these settings anytime using the Settings menu.",
+            style="white"
         )
         
         panel = Panel(
             completion_text,
-            title="[bold green]✓ All Done[/bold green]",
-            box=box.DOUBLE,
+            title="[bold green]✓ Configuration Saved[/]",
             border_style="green",
+            box=box.DOUBLE,
             padding=(1, 2)
         )
         
         self.console.print(panel)
+        self.console.print()
     
     def _select_theme(self) -> str:
         """Theme selection step with visual previews.
-        
+
         Displays all available themes with sample panels showing their colors.
-        Uses Rich Prompt for user selection with CRT_Cyan as default.
-        
+        Users can select a theme or skip to use the default (CRT_Cyan).
+
         Returns:
             Selected theme name
         """
-        self.console.clear()
-        
-        # Show step indicator
-        self.console.print(
-            Panel(
-                "[bold]Step 1/3: Theme Selection[/bold]",
-                box=box.ROUNDED,
-                border_style="cyan"
-            )
-        )
         self.console.print()
-        
+        self.console.print("[bold cyan]Step 1/3: Theme Selection[/]")
+        self.console.print("[dim]Choose your color theme. Each theme changes the colors used throughout peepBeefy.[/]")
+        self.console.print()
+
         # Get all available themes
         theme_names = ThemeRegistry.list_themes()
-        
+
         # Display preview for each theme
-        for theme_name in theme_names:
+        for i, theme_name in enumerate(theme_names, 1):
             theme = ThemeRegistry.get_theme(theme_name)
-            
-            # Create sample panel with theme colors
-            sample_text = Text()
-            sample_text.append("Primary ", style=Style(color=theme.palette.primary))
-            sample_text.append("• ")
-            sample_text.append("Highlight ", style=Style(color=theme.palette.highlight, bold=True))
-            sample_text.append("• ")
-            sample_text.append("Success ", style=Style(color=theme.palette.success))
-            sample_text.append("• ")
-            sample_text.append("Warning", style=Style(color=theme.palette.warning))
-            
-            panel = Panel(
-                sample_text,
-                title=f"[bold]{theme_name}[/bold]",
-                box=theme.get_box_style(),
-                border_style=theme.get_border_style(),
-                padding=(0, 1)
-            )
-            
-            self.console.print(panel)
-        
+            self._show_theme_preview(theme, i)
+
         self.console.print()
-        
+
         # Prompt for selection
-        selected = Prompt.ask(
-            "[cyan]Select theme[/cyan]",
-            choices=theme_names,
-            default="CRT_Cyan"
+        choices = [str(i) for i in range(1, len(theme_names) + 1)]
+        choice = Prompt.ask(
+            "[cyan]Select theme[/]",
+            choices=choices,
+            default="1",
+            show_choices=True
         )
-        
-        logger.info(f"User selected theme: {selected}")
-        return selected
+
+        selected_theme = theme_names[int(choice) - 1]
+        logger.info(f"User selected theme: {selected_theme}")
+
+        return selected_theme
+
+    def _show_theme_preview(self, theme: Theme, number: int) -> None:
+        """Display a visual preview of a theme.
+
+        Args:
+            theme: Theme to preview
+            number: Theme number for selection
+        """
+        # Create sample content with theme colors
+        preview_text = Text()
+        preview_text.append(f"{number}. ", style="white bold")
+        preview_text.append(theme.name.replace("_", " "), style=f"bold {theme.palette.primary}")
+        preview_text.append("\n\n", style="white")
+
+        # Show color samples
+        preview_text.append("Primary: ", style="dim white")
+        preview_text.append("████ ", style=theme.palette.primary)
+        preview_text.append("Highlight: ", style="dim white")
+        preview_text.append("████ ", style=theme.palette.highlight)
+        preview_text.append("\n")
+
+        preview_text.append("Success: ", style="dim white")
+        preview_text.append("████ ", style=theme.palette.success)
+        preview_text.append("Error: ", style="dim white")
+        preview_text.append("████ ", style=theme.palette.error)
+
+        # Create panel with theme styling
+        panel = Panel(
+            preview_text,
+            border_style=theme.palette.primary,
+            box=box.DOUBLE,
+            padding=(0, 1)
+        )
+
+        self.console.print(panel)
+
+
     
-    def _select_banner_mode(self) -> tuple[str, Optional[str], list[str]]:
-        """Banner mode selection step with descriptions and previews.
+    def _select_banner_mode(self) -> BannerConfig:
+        """Banner mode selection step with mode explanations.
         
-        Presents options: random, fixed, category with explanations.
-        Shows banner preview for fixed mode selection.
-        Allows category filtering for category mode.
+        Presents three banner modes:
+        - random: Different banner each launch
+        - fixed: Same banner every time
+        - category: Random from selected categories
         
         Returns:
-            Tuple of (mode, selected_banner, selected_categories)
+            BannerConfig with selected mode and preferences
         """
-        self.console.clear()
-        
-        # Show step indicator
-        self.console.print(
-            Panel(
-                "[bold]Step 2/3: Banner Mode Selection[/bold]",
-                box=box.ROUNDED,
-                border_style="cyan"
-            )
-        )
+        self.console.print()
+        self.console.print("[bold cyan]Step 2/3: Banner Mode Selection[/]")
+        self.console.print("[dim]Choose how peepBeefy selects ASCII art banners on startup.[/]")
         self.console.print()
         
-        # Display mode options with descriptions
-        mode_descriptions = {
-            "random": "Show a different banner each time you launch peepBeefy",
-            "fixed": "Always show the same banner (you'll choose which one)",
-            "category": "Show random banners from specific categories"
-        }
+        # Display mode options
+        self.console.print("[white bold]1.[/] [cyan]Random[/] - Show a different banner each time")
+        self.console.print("   [dim]Keeps things fresh with variety from all categories[/]")
+        self.console.print()
         
-        for mode, description in mode_descriptions.items():
-            self.console.print(f"[bold cyan]{mode}[/bold cyan]: {description}")
+        self.console.print("[white bold]2.[/] [cyan]Fixed[/] - Always show the same banner")
+        self.console.print("   [dim]Pick your favorite and stick with it[/]")
+        self.console.print()
         
+        self.console.print("[white bold]3.[/] [cyan]Category[/] - Random from selected categories")
+        self.console.print("   [dim]Filter by style (e.g., only minimal or cursive banners)[/]")
         self.console.print()
         
         # Prompt for mode selection
-        mode = Prompt.ask(
-            "[cyan]Select banner mode[/cyan]",
-            choices=["random", "fixed", "category"],
-            default="random"
+        mode_choice = Prompt.ask(
+            "[cyan]Select banner mode[/]",
+            choices=["1", "2", "3"],
+            default="1"
         )
         
-        selected_banner = None
-        selected_categories = ["1ST_BEEFS"]  # Default category
+        # Map choice to mode
+        mode_map = {"1": "random", "2": "fixed", "3": "category"}
+        selected_mode = mode_map[mode_choice]
         
-        # Handle fixed mode - show banner preview and selection
-        if mode == "fixed":
-            selected_banner = self._select_fixed_banner()
+        # Create banner config based on mode
+        banner_config = BannerConfig(mode=selected_mode)
         
-        # Handle category mode - allow category filtering
-        elif mode == "category":
-            selected_categories = self._select_categories()
+        # Handle mode-specific configuration
+        if selected_mode == "fixed":
+            banner_config = self._select_fixed_banner(banner_config)
+        elif selected_mode == "category":
+            banner_config = self._select_categories(banner_config)
         
-        logger.info(f"User selected banner mode: {mode}, banner: {selected_banner}, categories: {selected_categories}")
-        return (mode, selected_banner, selected_categories)
+        logger.info(f"User selected banner mode: {selected_mode}")
+        return banner_config
     
-    def _select_fixed_banner(self) -> str:
-        """Show banner preview and allow user to select a fixed banner.
+    def _select_fixed_banner(self, config: BannerConfig) -> BannerConfig:
+        """Allow user to select a specific banner for fixed mode.
         
+        Args:
+            config: BannerConfig to update
+            
         Returns:
-            Selected banner ID in format "CATEGORY:NAME"
+            Updated BannerConfig with selected banner
         """
-        import logging
+        self.console.print()
+        self.console.print("[dim]Loading available banners...[/]")
         
-        logger = logging.getLogger(__name__)
+        # Load banners if database available
+        if self._banner_db is None:
+            self.console.print("[yellow]Banner database not available. Using default banner.[/]")
+            return config
         
         try:
-            self.console.print()
-            self.console.print("[dim]Loading banners for preview...[/dim]")
+            banners_by_category = self._banner_db.load_banners()
             
-            # Load banner database
-            banner_db = BannerDatabase(self._assets_dir)
-            banners_dict = banner_db.load_banners()
-            
-            if not banners_dict:
-                self.console.print("[yellow]No banners available, using default[/yellow]")
-                logger.warning("No banners available for selection, using default")
-                return "1ST_BEEFS:BIGBEEF"
-            
-            # Get first banner from first category as default
-            first_category = list(banners_dict.keys())[0]
-            first_banner = banners_dict[first_category][0]
-            default_id = f"{first_banner.metadata.category}:{first_banner.metadata.name}"
-            
-            # Show a few banner options (limit to 3 for brevity)
-            self.console.print()
-            self.console.print("[bold]Available banners (showing first 3):[/bold]")
-            
-            count = 0
-            for category, banners in banners_dict.items():
+            # Flatten to list of (category, name) tuples
+            banner_list = []
+            for category, banners in banners_by_category.items():
                 for banner in banners:
-                    if count >= 3:
-                        break
-                    
-                    banner_id = f"{banner.metadata.category}:{banner.metadata.name}"
-                    self.console.print(f"  [cyan]{banner_id}[/cyan] - {banner.metadata.description}")
-                    count += 1
-                
-                if count >= 3:
-                    break
+                    banner_list.append((category, banner.metadata.name))
+            
+            if not banner_list:
+                self.console.print("[yellow]No banners found. Using default.[/]")
+                return config
+            
+            # Display banner options (first 10 for simplicity)
+            self.console.print()
+            self.console.print("[cyan]Available banners:[/]")
+            display_count = min(10, len(banner_list))
+            
+            for i, (category, name) in enumerate(banner_list[:display_count], 1):
+                self.console.print(f"[white bold]{i}.[/] {category}:{name}")
+            
+            if len(banner_list) > display_count:
+                self.console.print(f"[dim]... and {len(banner_list) - display_count} more[/]")
             
             self.console.print()
-            self.console.print(f"[dim]Tip: You can enter any banner ID in format CATEGORY:NAME[/dim]")
-            self.console.print()
             
-            # Prompt for banner selection
-            banner_id = Prompt.ask(
-                "[cyan]Enter banner ID[/cyan]",
-                default=default_id
+            # Prompt for selection
+            choices = [str(i) for i in range(1, display_count + 1)]
+            choice = Prompt.ask(
+                "[cyan]Select banner[/]",
+                choices=choices + ["skip"],
+                default="1"
             )
             
-            logger.info(f"User selected fixed banner: {banner_id}")
-            return banner_id
+            if choice != "skip":
+                idx = int(choice) - 1
+                category, name = banner_list[idx]
+                config.selected_banner = f"{category}:{name}"
+                logger.info(f"User selected fixed banner: {config.selected_banner}")
             
         except Exception as e:
-            logger.error(f"Error in banner selection: {e}", exc_info=True)
-            self.console.print(f"[red]Error loading banners: {e}[/red]")
-            self.console.print("[yellow]Using default banner[/yellow]")
-            return "1ST_BEEFS:BIGBEEF"
+            logger.error(f"Error loading banners for selection: {e}")
+            self.console.print(f"[yellow]Could not load banners: {e}[/]")
+        
+        return config
     
-    def _select_categories(self) -> list[str]:
-        """Allow user to select which categories to include.
+    def _select_categories(self, config: BannerConfig) -> BannerConfig:
+        """Allow user to select banner categories for category mode.
         
+        Args:
+            config: BannerConfig to update
+            
         Returns:
-            List of selected category names
+            Updated BannerConfig with selected categories
         """
-        import logging
+        self.console.print()
+        self.console.print("[dim]Loading available categories...[/]")
         
-        logger = logging.getLogger(__name__)
+        # Load categories if database available
+        if self._banner_db is None:
+            self.console.print("[yellow]Banner database not available. Using default categories.[/]")
+            return config
         
         try:
-            self.console.print()
-            
-            # Load banner database to get available categories
-            banner_db = BannerDatabase(self._assets_dir)
-            categories = banner_db.list_categories()
+            categories = self._banner_db.list_categories()
             
             if not categories:
-                self.console.print("[yellow]No categories available, using default[/yellow]")
-                logger.warning("No categories available, using default")
-                return ["1ST_BEEFS"]
+                self.console.print("[yellow]No categories found. Using defaults.[/]")
+                return config
             
-            # Show available categories
-            self.console.print("[bold]Available categories:[/bold]")
-            for cat in categories:
-                self.console.print(f"  [cyan]{cat}[/cyan]")
+            # Display category options
+            self.console.print()
+            self.console.print("[cyan]Available categories:[/]")
+            for i, category in enumerate(categories, 1):
+                self.console.print(f"[white bold]{i}.[/] {category}")
             
             self.console.print()
-            self.console.print("[dim]Enter categories separated by commas (e.g., 1ST_BEEFS,ALT)[/dim]")
-            self.console.print()
+            self.console.print("[dim]Enter category numbers separated by commas (e.g., 1,3,4)[/]")
+            self.console.print("[dim]Or press Enter to use all categories[/]")
             
-            # Prompt for category selection
-            default_cat = categories[0] if categories else "1ST_BEEFS"
-            categories_input = Prompt.ask(
-                "[cyan]Select categories[/cyan]",
-                default=default_cat
+            # Prompt for selection
+            selection = Prompt.ask(
+                "[cyan]Select categories[/]",
+                default="all"
             )
             
-            # Parse comma-separated categories
-            selected = [cat.strip() for cat in categories_input.split(",")]
-            
-            # Validate that selected categories exist
-            valid_selected = [cat for cat in selected if cat in categories]
-            
-            if not valid_selected:
-                self.console.print(f"[yellow]Invalid categories, using default: {default_cat}[/yellow]")
-                logger.warning(f"Invalid categories selected: {selected}, using default")
-                return [default_cat]
-            
-            logger.info(f"User selected categories: {valid_selected}")
-            return valid_selected
+            if selection.lower() != "all":
+                # Parse comma-separated numbers
+                try:
+                    indices = [int(x.strip()) - 1 for x in selection.split(",")]
+                    selected_categories = [categories[i] for i in indices if 0 <= i < len(categories)]
+                    
+                    if selected_categories:
+                        config.selected_categories = selected_categories
+                        logger.info(f"User selected categories: {selected_categories}")
+                    else:
+                        self.console.print("[yellow]Invalid selection. Using all categories.[/]")
+                except (ValueError, IndexError) as e:
+                    self.console.print(f"[yellow]Invalid input: {e}. Using all categories.[/]")
+            else:
+                config.selected_categories = categories
+                logger.info("User selected all categories")
             
         except Exception as e:
-            logger.error(f"Error in category selection: {e}", exc_info=True)
-            self.console.print(f"[red]Error loading categories: {e}[/red]")
-            self.console.print("[yellow]Using default category[/yellow]")
-            return ["1ST_BEEFS"]
-    
-    def _select_animation_preferences(self) -> tuple[bool, str]:
-        """Animation preferences step with intensity selection.
+            logger.error(f"Error loading categories for selection: {e}")
+            self.console.print(f"[yellow]Could not load categories: {e}[/]")
         
-        Asks if user wants animations enabled.
-        If enabled, asks for intensity level (subtle, normal, intense).
-        Shows brief description for each intensity level.
+        return config
+    
+    def _select_animation_preferences(self) -> dict:
+        """Animation preferences selection step.
+        
+        Asks user if they want animations enabled and, if so, what intensity level.
+        Shows brief animation preview for each intensity option.
         
         Returns:
-            Tuple of (animation_enabled, animation_intensity)
+            Dictionary with animation preferences (enabled, intensity, duration, fps)
         """
-        self.console.clear()
-        
-        # Show step indicator
-        self.console.print(
-            Panel(
-                "[bold]Step 3/3: Animation Preferences[/bold]",
-                box=box.ROUNDED,
-                border_style="cyan"
-            )
-        )
+        self.console.print()
+        self.console.print("[bold cyan]Step 3/3: Animation Preferences[/]")
+        self.console.print("[dim]Configure fire animation effects for banners.[/]")
         self.console.print()
         
-        # Ask if user wants animations
-        self.console.print("[bold]Banner Animation[/bold]")
-        self.console.print("peepBeefy can display banners with a DOOM PSX-inspired fire animation effect.")
-        self.console.print()
-        
+        # Ask if animations should be enabled
         animation_enabled = Confirm.ask(
-            "[cyan]Enable banner animations?[/cyan]",
+            "[cyan]Enable fire animations?[/]",
             default=True
         )
         
-        animation_intensity = "normal"  # Default
-        
-        # If animations enabled, ask for intensity level
-        if animation_enabled:
-            self.console.print()
-            self.console.print("[bold]Animation Intensity[/bold]")
-            
-            # Display intensity options with descriptions
-            intensity_descriptions = {
-                "subtle": "Gentle flickering, minimal distraction",
-                "normal": "Balanced animation, recommended for most users",
-                "intense": "Maximum flicker and fire effects"
+        if not animation_enabled:
+            logger.info("User disabled animations")
+            return {
+                "enabled": False,
+                "intensity": "normal",
+                "duration": 3.0,
+                "fps": 8
             }
-            
-            for intensity, description in intensity_descriptions.items():
-                self.console.print(f"[bold cyan]{intensity}[/bold cyan]: {description}")
-            
-            self.console.print()
-            
-            # Prompt for intensity selection
-            animation_intensity = Prompt.ask(
-                "[cyan]Select animation intensity[/cyan]",
-                choices=["subtle", "normal", "intense"],
-                default="normal"
-            )
         
-        logger.info(f"User selected animation: enabled={animation_enabled}, intensity={animation_intensity}")
-        return (animation_enabled, animation_intensity)
+        # Ask for intensity level
+        self.console.print()
+        self.console.print("[cyan]Animation Intensity:[/]")
+        self.console.print()
+        
+        self.console.print("[white bold]1.[/] [cyan]Subtle[/] - Gentle flickering")
+        self.console.print("   [dim]Less visual noise, good for focus[/]")
+        self.console.print()
+        
+        self.console.print("[white bold]2.[/] [cyan]Normal[/] - Balanced animation")
+        self.console.print("   [dim]Default setting, nice visual appeal[/]")
+        self.console.print()
+        
+        self.console.print("[white bold]3.[/] [cyan]Intense[/] - Maximum fire effect")
+        self.console.print("   [dim]Full DOOM PSX experience[/]")
+        self.console.print()
+        
+        # Prompt for intensity selection
+        intensity_choice = Prompt.ask(
+            "[cyan]Select intensity[/]",
+            choices=["1", "2", "3"],
+            default="2"
+        )
+        
+        # Map choice to intensity
+        intensity_map = {"1": "subtle", "2": "normal", "3": "intense"}
+        selected_intensity = intensity_map[intensity_choice]
+        
+        logger.info(f"User selected animation intensity: {selected_intensity}")
+        
+        return {
+            "enabled": True,
+            "intensity": selected_intensity,
+            "duration": 3.0,
+            "fps": 8
+        }
