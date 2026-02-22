@@ -44,8 +44,7 @@ from config import ConfigManager
 from themes import ThemeRegistry
 from logging_config import setup_logging
 
-# Initialize logging
-setup_logging(debug=False)
+# Logging will be initialized in main() with --debug flag support
 logger = logging.getLogger(__name__)
 
 # --- Rich / Typer setup -------------------------------------------------------

@@ -8492,3 +8492,189 @@ Exception: Animation failed
 [2026-02-22 00:17:58] [INFO] [logging_config] Logging initialized (level=INFO)
 [2026-02-22 00:18:15] [INFO] [logging_config] Logging initialized (level=INFO)
 [2026-02-22 00:18:20] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-22 00:36:27] [INFO] [logging_config] Logging initialized (level=INFO)
+[2026-02-22 00:36:27] [INFO] [src.banner] Loading banners from cache
+[2026-02-22 00:36:27] [INFO] [src.banner] Loaded 22 banners from cache
+[2026-02-22 00:36:27] [INFO] [src.banner_preview] Filtered to 5 animation-compatible banners
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] User disabled animations
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\pytest-of-ryanf\pytest-56\test_wizard_integration_with_m0\.peepbeefy\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\pytest-of-ryanf\pytest-56\test_wizard_integration_with_m0\.peepbeefy\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Marked first-run setup as complete
+[2026-02-22 00:36:27] [INFO] [src.config] Loaded configuration from C:\Users\ryanf\AppData\Local\Temp\pytest-of-ryanf\pytest-56\test_wizard_integration_with_m0\.peepbeefy\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmp09piasv3\config.json
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected theme: CRT_Cyan
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: random
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected animation intensity: normal
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard completed successfully
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected theme: Amber_Terminal
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: random
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected animation intensity: intense
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard completed successfully
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmpa2cjjyck\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Loaded configuration from C:\Users\ryanf\AppData\Local\Temp\tmpa2cjjyck\config.json
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard skipped by user
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard skipped by user, using defaults
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmpolvsuzlv\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Loaded configuration from C:\Users\ryanf\AppData\Local\Temp\tmpolvsuzlv\config.json
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected theme: Green_Phosphor
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: random
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected fixed banner: 1ST_BEEFS:<Mock name='BIGBEEF.name' id='1665647363792'>
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: fixed
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected categories: ['1ST_BEEFS', 'ALT']
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: category
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected animation intensity: subtle
+[2026-02-22 00:36:27] [INFO] [src.wizard] User disabled animations
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected theme: Synthwave
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected categories: ['1ST_BEEFS', 'CURSIVE']
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: category
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected animation intensity: normal
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard completed successfully
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmpglmh5_b6\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Loaded configuration from C:\Users\ryanf\AppData\Local\Temp\tmpglmh5_b6\config.json
+[2026-02-22 00:36:27] [INFO] [src.wizard] Starting first-run setup wizard
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected theme: CRT_Cyan
+[2026-02-22 00:36:27] [INFO] [src.wizard] User selected banner mode: fixed
+[2026-02-22 00:36:27] [INFO] [src.wizard] User disabled animations
+[2026-02-22 00:36:27] [INFO] [src.wizard] Setup wizard completed successfully
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmpea0yczbm\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Saved configuration to C:\Users\ryanf\AppData\Local\Temp\tmpea0yczbm\config.json
+[2026-02-22 00:36:27] [INFO] [src.config] Marked first-run setup as complete
+[2026-02-22 00:36:27] [INFO] [src.config] Loaded configuration from C:\Users\ryanf\AppData\Local\Temp\tmpea0yczbm\config.json
+[2026-02-22 00:36:27] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:27] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:27] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 14 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 8 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 8 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 7 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 8 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 8 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 8 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 11 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 11 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 11 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 11 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 11 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 10 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 30 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 29 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 7 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 6 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 5 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 1 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 4 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 2 commands from history
+[2026-02-22 00:36:28] [INFO] [command_history] Loaded 3 commands from history
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [WARNING] [config] Invalid animation_duration 0.3, using default 3.0
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [WARNING] [config] Invalid animation_duration 15.0, using default 3.0
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:28] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [WARNING] [config] Invalid animation_fps 2, using default 8
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [WARNING] [config] Invalid animation_fps 60, using default 8
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [WARNING] [config] Invalid theme_variant InvalidTheme, using default CRT_Cyan
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Saved configuration to C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Loaded configuration from C:\Users\ryanf\.peepbeefy\config.json
+[2026-02-22 00:36:29] [INFO] [config] Config file not found, using defaults
+[2026-02-22 00:36:29] [ERROR] [config] Corrupted config file (invalid JSON): Expecting property name enclosed in double quotes: line 1 column 3 (char 2)
+[2026-02-22 00:36:29] [INFO] [config] Backed up corrupted config to C:\Users\ryanf\.peepbeefy\config.corrupted.1771749389

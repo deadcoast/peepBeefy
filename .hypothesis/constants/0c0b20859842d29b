@@ -1,0 +1,4 @@
+# file: C:\Users\ryanf\github\_new\peepBeefy\src\logging_config.py
+# hypothesis_version: 6.151.9
+
+[1024, '%Y-%m-%d %H:%M:%S', '.logs', '.peepbeefy', '=', 'peepbeefy.log', 'utf-8']

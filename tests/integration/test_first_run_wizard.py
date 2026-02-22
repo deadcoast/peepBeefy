@@ -49,11 +49,16 @@ class TestFirstRunWizard:
         # Create wizard
         wizard = SetupWizard(console, assets_dir)
         
-        # Mock the wizard methods to return default values
-        with patch.object(wizard, '_show_welcome', return_value=False):
+        # Mock the wizard methods to return correct types
+        with patch.object(wizard, '_show_welcome', return_value=None):
             with patch.object(wizard, '_select_theme', return_value='CRT_Cyan'):
-                with patch.object(wizard, '_select_banner_mode', return_value=('random', None, ['1ST_BEEFS'])):
-                    with patch.object(wizard, '_select_animation_preferences', return_value=(True, 'normal')):
+                with patch.object(wizard, '_select_banner_mode', return_value=BannerConfig(mode='random')):
+                    with patch.object(wizard, '_select_animation_preferences', return_value={
+                        "enabled": True,
+                        "intensity": "normal",
+                        "duration": 3.0,
+                        "fps": 8
+                    }):
                         # Act
                         config = wizard.run()
         
@@ -87,8 +92,8 @@ class TestFirstRunWizard:
         # Create wizard
         wizard = SetupWizard(console, assets_dir)
         
-        # Mock the welcome screen to return True (skip)
-        with patch.object(wizard, '_show_welcome', return_value=True):
+        # Mock builtins.input to raise KeyboardInterrupt (simulating Ctrl+C)
+        with patch('builtins.input', side_effect=KeyboardInterrupt):
             # Act
             config = wizard.run()
         
@@ -110,8 +115,8 @@ class TestFirstRunWizard:
         
         wizard = SetupWizard(console, assets_dir)
         
-        # Mock Prompt.ask to return a specific theme
-        with patch('src.wizard.Prompt.ask', return_value='Amber_Terminal'):
+        # Mock Prompt.ask to return choice "2" (Amber_Terminal)
+        with patch('rich.prompt.Prompt.ask', return_value='2'):
             # Act
             theme = wizard._select_theme()
         
@@ -129,15 +134,15 @@ class TestFirstRunWizard:
         
         wizard = SetupWizard(console, assets_dir)
         
-        # Mock Prompt.ask to return random mode
-        with patch('src.wizard.Prompt.ask', return_value='random'):
+        # Mock Prompt.ask to return choice "1" (random mode)
+        with patch('rich.prompt.Prompt.ask', return_value='1'):
             # Act
-            mode, banner, categories = wizard._select_banner_mode()
+            banner_config = wizard._select_banner_mode()
         
         # Assert
-        assert mode == 'random'
-        assert banner is None
-        assert categories == ['1ST_BEEFS']
+        assert banner_config.mode == 'random'
+        assert banner_config.selected_banner is None
+        assert banner_config.selected_categories == ['1ST_BEEFS']
     
     def test_wizard_animation_preferences_enabled(self, tmp_path):
         """Test animation preferences with animation enabled."""
@@ -151,15 +156,15 @@ class TestFirstRunWizard:
         wizard = SetupWizard(console, assets_dir)
         
         # Mock Confirm.ask to return True (enabled)
-        # Mock Prompt.ask to return intensity
-        with patch('src.wizard.Confirm.ask', return_value=True):
-            with patch('src.wizard.Prompt.ask', return_value='intense'):
+        # Mock Prompt.ask to return choice "3" (intense)
+        with patch('rich.prompt.Confirm.ask', return_value=True):
+            with patch('rich.prompt.Prompt.ask', return_value='3'):
                 # Act
-                enabled, intensity = wizard._select_animation_preferences()
+                animation_config = wizard._select_animation_preferences()
         
         # Assert
-        assert enabled is True
-        assert intensity == 'intense'
+        assert animation_config["enabled"] is True
+        assert animation_config["intensity"] == 'intense'
     
     def test_wizard_animation_preferences_disabled(self, tmp_path):
         """Test animation preferences with animation disabled."""
@@ -173,13 +178,13 @@ class TestFirstRunWizard:
         wizard = SetupWizard(console, assets_dir)
         
         # Mock Confirm.ask to return False (disabled)
-        with patch('src.wizard.Confirm.ask', return_value=False):
+        with patch('rich.prompt.Confirm.ask', return_value=False):
             # Act
-            enabled, intensity = wizard._select_animation_preferences()
+            animation_config = wizard._select_animation_preferences()
         
         # Assert
-        assert enabled is False
-        assert intensity == 'normal'  # Default intensity even when disabled
+        assert animation_config["enabled"] is False
+        assert animation_config["intensity"] == 'normal'  # Default intensity even when disabled
     
     def test_mark_first_run_complete(self, tmp_path):
         """Test marking first run as complete."""
