@@ -185,17 +185,17 @@ The implementation will use **Python** with the Rich library for terminal render
     - Test fallback works when files missing
     - _Requirements: 1.1, 10.1_
 
-- [ ] 6. Checkpoint - Phase 1 Complete
+- [x] 6. Checkpoint - Phase 1 Complete
   - Ensure all Phase 1 tests pass, verify banner displays on startup with random selection, confirm configuration persists between runs. Ask the user if questions arise.
 
-- [ ] 7. Phase 2: Animation System - Fire Animation Engine
-  - [ ] 7.1 Create animation.py module with FirePalette
+- [x] 7. Phase 2: Animation System - Fire Animation Engine
+  - [x] 7.1 Create animation.py module with FirePalette
     - Implement `FirePalette` class with 12-step DOOM PSX color palette
     - Define COLORS tuple with hex color codes (ember → flame → tips)
     - Create STYLES tuple with Rich Style objects for each color
     - _Requirements: 3.1, 3.3_
   
-  - [ ] 7.2 Extract and generalize fire animation from install.py
+  - [x] 7.2 Extract and generalize fire animation from install.py
     - Create `FireAnimator` class with intensity parameter
     - Implement `animate_banner()` method accepting banner, console, duration, fps
     - Build animation frames with per-character coloring
@@ -203,18 +203,18 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement frame timing with configurable FPS
     - _Requirements: 3.1, 3.2, 3.3_
   
-  - [ ] 7.3 Implement flame zone detection heuristic
+  - [x] 7.3 Implement flame zone detection heuristic
     - Implement `_detect_zones()` method returning flame_lines and text_lines
     - Use 60/40 split heuristic (top 60% flame, bottom 40% text)
     - Support metadata override via flame_lines field
     - _Requirements: 3.4, 3.5_
   
-  - [ ] 7.4 Write property test for flame zone detection
+  - [x] 7.4 Write property test for flame zone detection
     - **Property 15: Fire Animation Dimension Adaptation**
     - **Property 16: Flame Zone Coloring Separation**
     - **Validates: Requirements 3.4, 3.5**
   
-  - [ ] 7.5 Implement flame coloring algorithm
+  - [x] 7.5 Implement flame coloring algorithm
     - Implement `_apply_flame_coloring()` method for flame zone lines
     - Calculate base palette index based on line position (hotter at top)
     - Apply flicker effect with random palette offsets
@@ -222,50 +222,50 @@ The implementation will use **Python** with the Rich library for terminal render
     - Preserve spacing characters without coloring
     - _Requirements: 3.3, 3.5_
   
-  - [ ] 7.6 Implement text coloring algorithm with ember cracks
+  - [x] 7.6 Implement text coloring algorithm with ember cracks
     - Implement `_apply_text_coloring()` method for text zone lines
     - Use white → gray → dim gradient based on line position
     - Apply ember crack effect with random hot color spots
     - Adjust crack probability based on line position
     - _Requirements: 3.3, 3.5_
   
-  - [ ] 7.7 Add animation intensity customization
+  - [x] 7.7 Add animation intensity customization
     - Implement intensity multiplier for flicker and crack probabilities
     - Support "subtle" (0.5x), "normal" (1.0x), "intense" (1.5x) modes
     - Apply intensity to both flame and text coloring
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
   
-  - [ ] 7.8 Write property tests for animation behavior
+  - [x] 7.8 Write property tests for animation behavior
     - **Property 17: Animation Duration Respect**
     - **Property 18: Animation Intensity Differentiation**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.5**
 
-- [ ] 8. Phase 2: Animation System - Integration
-  - [ ] 8.1 Add animated rendering to BannerRenderer
+- [x] 8. Phase 2: Animation System - Integration
+  - [x] 8.1 Add animated rendering to BannerRenderer
     - Implement `render_animated()` method in BannerRenderer
     - Lazy-load FireAnimator only when animation enabled
     - Pass configuration parameters (duration, fps, intensity) to animator
     - Handle animation errors with fallback to static rendering
     - _Requirements: 3.1, 3.6, 3.7, 8.6_
   
-  - [ ] 8.2 Write property test for animation lazy loading
+  - [x] 8.2 Write property test for animation lazy loading
     - **Property 14: Animation Lazy Loading**
     - **Validates: Requirements 8.6**
   
-  - [ ] 8.3 Update main.py to support animated banners
+  - [x] 8.3 Update main.py to support animated banners
     - Check animation_enabled in configuration
     - Call render_animated() when enabled, render_static() when disabled
     - Log animation status at INFO level
     - _Requirements: 3.6, 3.7_
   
-  - [ ] 8.4 Write unit tests for animation integration
+  - [x] 8.4 Write unit tests for animation integration
     - Test animation displays when enabled
     - Test static banner displays when disabled
     - Test fallback to static on animation error
     - _Requirements: 3.6, 3.7_
 
-- [ ] 9. Phase 2: Animation System - Performance Optimization
-  - [ ] 9.1 Implement banner caching in BannerDatabase
+- [x] 9. Phase 2: Animation System - Performance Optimization
+  - [x] 9.1 Implement banner caching in BannerDatabase
     - Add `_cache` and `_cache_file` instance variables
     - Implement `_is_cache_valid()` checking source file modification times
     - Implement `_load_from_cache()` and `_save_to_cache()` using pickle
@@ -273,17 +273,17 @@ The implementation will use **Python** with the Rich library for terminal render
     - Support `force_reload` parameter to bypass cache
     - _Requirements: 8.1, 8.5_
   
-  - [ ] 9.2 Write property test for cache invalidation
+  - [x] 9.2 Write property test for cache invalidation
     - **Property 12: Banner Cache Invalidation**
     - **Validates: Requirements 8.5**
   
-  - [ ] 9.3 Optimize animation frame pre-computation
+  - [x] 9.3 Optimize animation frame pre-computation
     - Pre-compute all animation frames before starting Live context
     - Store frames in list for smooth playback
     - Cycle through pre-computed frames during animation
     - _Requirements: 8.3_
   
-  - [ ] 9.4 Write performance test for banner display
+  - [x] 9.4 Write performance test for banner display
     - **Property 13: Banner Display Performance**
     - **Validates: Requirements 8.3**
 

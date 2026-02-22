@@ -1,170 +1,163 @@
 """
 Fire Animation Engine for peepBeefy
 
-Implements DOOM PSX-inspired fire animation with per-character coloring,
-flame zone detection, and configurable intensity levels.
+Implements DOOM PSX-inspired fire effect for ASCII art banners.
+Extracted and generalized from install.py.
 
-Design: Extracted and generalized from install.py fire animation system.
+Design:
+- 12-step fire color palette (ember → flame → tips)
+- Per-character coloring with flicker effect
+- Adaptive flame zone detection
+- Configurable intensity levels
+- Terminal color capability detection with fallback
+- Metadata-driven flame zone override
+- Input validation and error handling
 """
 
+import logging
 import random
 import time
 from typing import List, Tuple, Optional
 
 from rich.console import Console
-from rich.text import Text
-from rich.style import Style
 from rich.live import Live
+from rich.style import Style
+from rich.text import Text
+
+# Try to import TerminalCapabilities for RGB detection
+# If not available, default to RGB mode
+try:
+    from themes import TerminalCapabilities
+    _HAS_TERMINAL_CAPABILITIES = True
+except ImportError:
+    _HAS_TERMINAL_CAPABILITIES = False
+
+logger = logging.getLogger(__name__)
 
 
 class FirePalette:
     """12-step DOOM PSX fire color palette.
     
-    The palette progresses from barely visible embers (index 0) to near-white
-    flame tips (index 11). This creates smooth color transitions for the
-    flicker effect.
+    Index 0 = barely visible ember
+    Index 11 = near-white peak
     
-    Palette structure:
-    - Indices 0-3: Embers (dark red to red-orange)
-    - Indices 4-7: Flame core (red to orange)
-    - Indices 8-11: Flame tips (orange to yellow-white)
+    The palette progresses from deep embers through flame core to bright tips.
+    Supports both RGB and 8-bit color fallback for terminal compatibility.
     """
     
     # RGB (24-bit) color palette
     COLORS = (
-        "#4F0F07", "#6D1504", "#8B1A00", "#AB1E00",  # embers
-        "#CC2200", "#E53400", "#FF4500", "#FF6800",  # flame core
-        "#FF8C00", "#FFB400", "#FFD700", "#FFE55C",  # tips
-    )
-    
-    # 8-bit color palette fallback (ANSI 256-color codes)
-    # Mapped to closest 8-bit colors for terminals without RGB support
-    COLORS_8BIT = (
-        "color(52)",   # dark red (ember)
-        "color(88)",   # red (ember)
-        "color(124)",  # red (ember)
-        "color(160)",  # bright red (ember)
-        "color(196)",  # bright red (flame core)
-        "color(202)",  # orange-red (flame core)
-        "color(208)",  # orange (flame core)
-        "color(214)",  # orange (flame core)
-        "color(220)",  # yellow-orange (flame tips)
-        "color(226)",  # yellow (flame tips)
-        "color(227)",  # bright yellow (flame tips)
-        "color(229)",  # pale yellow (flame tips)
+        "#4F0F07", "#6D1504", "#8B1A00", "#AB1E00",   # embers (0-3)
+        "#CC2200", "#E53400", "#FF4500", "#FF6800",   # flame core (4-7)
+        "#FF8C00", "#FFB400", "#FFD700", "#FFE55C",   # tips (8-11)
     )
     
     STYLES = tuple(Style(color=c) for c in COLORS)
-    STYLES_8BIT = tuple(Style(color=c) for c in COLORS_8BIT)
     
-    @staticmethod
-    def get_styles(use_rgb: bool = True) -> tuple:
-        """Get the appropriate color styles based on terminal capabilities.
-        
-        Args:
-            use_rgb: Whether to use RGB colors (True) or 8-bit fallback (False)
-            
-        Returns:
-            Tuple of Style objects for the fire palette
-        """
-        return FirePalette.STYLES if use_rgb else FirePalette.STYLES_8BIT
+    # 8-bit ANSI color fallback palette (for terminals without RGB support)
+    # Maps to closest ANSI 256-color codes
+    COLORS_8BIT = (
+        "color(52)",   # dark red (ember)
+        "color(88)",   # red
+        "color(124)",  # bright red
+        "color(160)",  # orange-red
+        "color(196)",  # bright red
+        "color(202)",  # orange
+        "color(208)",  # bright orange
+        "color(214)",  # yellow-orange
+        "color(220)",  # yellow
+        "color(226)",  # bright yellow
+        "color(227)",  # pale yellow
+        "color(229)",  # near-white yellow
+    )
+    
+    STYLES_8BIT = tuple(Style(color=c) for c in COLORS_8BIT)
+
+
+# Pre-weighted flicker offsets: 0(40%) +1(18%) -1(17%) +2(13%) -2(12%)
+# Slight warm bias (31% warm vs 29% cool) — flames push energy upward.
+FLICKER_OFFSETS = (0,)*40 + (1,)*18 + (-1,)*17 + (2,)*13 + (-2,)*12
 
 
 class FireAnimator:
     """Applies DOOM PSX fire effect to ASCII art banners.
     
-    The animator detects flame zones vs text zones in the banner and applies
-    appropriate coloring:
-    - Flame zones: Fire palette with flicker effect
-    - Text zones: White/gray gradient with ember crack effect
+    The animator adapts to different ASCII art dimensions and applies
+    per-character coloring with configurable intensity.
     
-    Attributes:
-        intensity: Animation intensity level ("subtle", "normal", "intense")
+    Features:
+    - RGB color support with 8-bit fallback
+    - Metadata-driven flame zone override
+    - Input validation and error handling
+    - Configurable intensity levels
     """
     
-    # Pre-weighted flicker offsets for natural flame movement
-    # Distribution: 0(40%) +1(18%) -1(17%) +2(13%) -2(12%)
-    # Slight warm bias (31% warm vs 29% cool) — flames push energy upward
-    _FLICKER_OFFSETS = (0,)*40 + (1,)*18 + (-1,)*17 + (2,)*13 + (-2,)*12
-    
-    # Text styles for text zone lines (white → gray → dim)
-    _TEXT_STYLES = (
-        Style(color="#FFFFFF", bold=True),   # Line 0: white-hot text
-        Style(color="#CCCCCC"),              # Line 1: cooling glow
-        Style(color="#999999", dim=True),    # Line 2: dim base
-    )
-    
-    def __init__(self, intensity: str = "normal"):
+    def __init__(self, intensity: str = "normal", use_rgb: Optional[bool] = None):
         """Initialize the fire animator.
         
         Args:
-            intensity: Animation intensity level ("subtle", "normal", "intense")
+            intensity: Animation intensity level - "subtle", "normal", or "intense"
+            use_rgb: Whether to use RGB colors. If None, auto-detect terminal capability.
         """
-        import logging
+        self._intensity = intensity
+        self._intensity_multiplier = self._get_intensity_multiplier()
         
-        logger = logging.getLogger(__name__)
+        # Detect RGB support if not explicitly specified
+        if use_rgb is None:
+            if _HAS_TERMINAL_CAPABILITIES:
+                self._use_rgb = TerminalCapabilities.supports_rgb()
+            else:
+                # Default to RGB if TerminalCapabilities not available
+                self._use_rgb = True
+        else:
+            self._use_rgb = use_rgb
         
-        try:
-            self._intensity = intensity
-            self._intensity_multiplier = self._get_intensity_multiplier()
-            
-            # Detect terminal color support and select appropriate palette
-            from .themes import TerminalCapabilities
-            self._use_rgb = TerminalCapabilities.supports_rgb()
-            self._palette_styles = FirePalette.get_styles(self._use_rgb)
-            
-            logger.debug(f"FireAnimator initialized: intensity={intensity}, use_rgb={self._use_rgb}")
-            
-        except Exception as e:
-            logger.error(f"Error initializing FireAnimator: {e}, using defaults")
-            # Set safe defaults
-            self._intensity = "normal"
-            self._intensity_multiplier = 1.0
-            self._use_rgb = True
-            self._palette_styles = FirePalette.STYLES
+        # Select appropriate palette
+        self._palette = FirePalette.STYLES if self._use_rgb else FirePalette.STYLES_8BIT
+        
+        logger.debug(f"FireAnimator initialized: intensity={intensity}, use_rgb={self._use_rgb}")
     
     def _get_intensity_multiplier(self) -> float:
-        """Get the intensity multiplier for flicker and crack probabilities.
-        
-        Returns:
-            Multiplier value: 0.5 for subtle, 1.0 for normal, 1.5 for intense
-        """
-        multipliers = {
+        """Get the intensity multiplier for flicker and crack probabilities."""
+        return {
             "subtle": 0.5,
             "normal": 1.0,
             "intense": 1.5,
-        }
-        return multipliers.get(self._intensity, 1.0)
+        }.get(self._intensity, 1.0)
     
     def animate_banner(
         self,
-        banner,  # Banner type from banner.py
+        banner,
         console: Console,
         duration: float = 3.0,
-        fps: int = 8
+        fps: int = 8,
+        precompute_frames: bool = False
     ) -> None:
         """Run fire animation on banner for specified duration.
         
         Args:
-            banner: Banner object with lines and metadata
-            console: Rich Console for rendering
-            duration: Animation duration in seconds
-            fps: Frames per second
+            banner: Banner object or list of strings representing ASCII art lines
+            console: Rich Console instance for rendering
+            duration: Animation duration in seconds (clamped to 0.5-60.0)
+            fps: Frames per second (clamped to 1-60)
+            precompute_frames: If True, pre-compute all frames before animating
         """
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        
         try:
-            # Validate inputs
-            if duration <= 0:
-                logger.warning(f"Invalid duration {duration}, using default 3.0s")
-                duration = 3.0
+            # Validate and clamp inputs
+            duration = max(0.5, min(60.0, duration))
+            fps = max(1, min(60, fps))
             
-            if fps <= 0 or fps > 60:
-                logger.warning(f"Invalid FPS {fps}, using default 8")
-                fps = 8
+            # Handle both Banner objects and list of strings
+            if hasattr(banner, 'lines'):
+                lines = banner.lines
+            else:
+                lines = banner
             
+            if not lines:
+                logger.warning("Empty banner provided to animate_banner")
+                return
+            
+            # Detect flame and text zones with metadata override support
             # Detect flame and text zones
             flame_lines, text_lines = self._detect_zones(banner)
             
@@ -205,41 +198,136 @@ class FireAnimator:
                         break
             
             logger.debug(f"Animation completed: {frame_idx} frames displayed")
-            
-        except Exception as e:
-            logger.error(f"Fatal error in animate_banner: {e}", exc_info=True)
-            # Display static banner as fallback
+        except ValueError as e:
+            logger.error(f"Invalid input to animate_banner: {e}")
+            # Fallback to static display
             try:
-                console.print("\n".join(banner.lines))
-            except Exception:
-                pass
-    
-    def _detect_zones(self, banner) -> Tuple[List[int], List[int]]:
-        """Detect which lines are flame vs text zones.
-        
-        Uses a 60/40 split heuristic: top 60% of banner is flame zone,
-        bottom 40% is text zone. Can be overridden by banner metadata.
-        
+                static_frame = self._build_static_frame(banner)
+                console.print(static_frame)
+            except Exception as fallback_error:
+                logger.error(f"Fallback static frame failed: {fallback_error}")
+    def _validate_inputs(self, banner, console: Console) -> bool:
+        """Validate inputs for animation.
+
         Args:
-            banner: Banner object with lines and metadata
-            
+            banner: Banner object or list of strings
+            console: Rich Console instance
+
         Returns:
-            Tuple of (flame_line_indices, text_line_indices)
+            True if inputs are valid, False otherwise
         """
-        total_lines = len(banner.lines)
+        try:
+            if not console:
+                logger.error("Console is None")
+                return False
+
+            # Handle both Banner objects and list of strings
+            if hasattr(banner, 'lines'):
+                lines = banner.lines
+            else:
+                lines = banner
+
+            if not isinstance(lines, (list, tuple)):
+                logger.error("Banner lines must be a list or tuple")
+                return False
+
+            if not lines:
+                logger.warning("Empty banner provided")
+                return False
+
+            # Validate each line is a string
+            for i, line in enumerate(lines):
+                if not isinstance(line, str):
+                    logger.error(f"Line {i} is not a string: {type(line)}")
+                    return False
+
+            return True
+        except Exception as e:
+            logger.error(f"Error validating inputs: {e}")
+            return False
+            
+            if precompute_frames:
+                # Pre-compute all frames for smoother playback
+                self._animate_precomputed(lines, flame_lines, text_lines, console, duration, fps)
+            else:
+                # Build frames on-the-fly (lower memory usage)
+                self._animate_realtime(lines, flame_lines, text_lines, console, duration, fps)
+                
+        except Exception as e:
+            logger.error(f"Error during animation: {e}", exc_info=True)
+            # Fallback: display static frame
+            try:
+                static_frame = self._build_static_frame(banner)
+                console.print(static_frame)
+            except Exception as fallback_error:
+                logger.error(f"Fallback static frame failed: {fallback_error}")
+    
+    def _animate_realtime(
+        self,
+        lines: List[str],
+        flame_lines: List[int],
+        text_lines: List[int],
+        console: Console,
+        duration: float,
+        fps: int
+    ) -> None:
+        """Animate by building frames in real-time."""
+        rng = random.Random()
+        frame = self._build_frame(lines, flame_lines, text_lines, rng)
         
-        # Check for explicit metadata override
-        if hasattr(banner.metadata, 'flame_lines') and banner.metadata.flame_lines is not None:
-            flame_lines = banner.metadata.flame_lines
-            text_lines = [i for i in range(total_lines) if i not in flame_lines]
-            return flame_lines, text_lines
+        interval = 1.0 / fps
+        start = time.monotonic()
         
-        # Heuristic: 60/40 split
-        flame_cutoff = int(total_lines * 0.6)
-        flame_lines = list(range(flame_cutoff))
-        text_lines = list(range(flame_cutoff, total_lines))
+        with Live(frame, console=console, refresh_per_second=fps, transient=False) as live:
+            while time.monotonic() - start < duration:
+                time.sleep(interval)
+                frame = self._build_frame(lines, flame_lines, text_lines, rng)
+                live.update(frame)
+    
+    def _animate_precomputed(
+        self,
+        lines: List[str],
+        flame_lines: List[int],
+        text_lines: List[int],
+        console: Console,
+        duration: float,
+        fps: int
+    ) -> None:
+        """Animate using pre-computed frames for smoother playback."""
+        import itertools
         
-        return flame_lines, text_lines
+        # Pre-compute frames
+        num_frames = max(8, int(fps * 1.0))  # At least 8 frames, or 1 second worth
+        rng = random.Random()
+        frames = []
+        
+        for _ in range(num_frames):
+            frame = self._build_frame(lines, flame_lines, text_lines, rng)
+            frames.append(frame)
+        
+        # Animate with pre-computed frames
+        interval = 1.0 / fps
+        start = time.monotonic()
+        frame_cycle = itertools.cycle(frames)
+        
+        with Live(next(frame_cycle), console=console, refresh_per_second=fps, transient=False) as live:
+            while time.monotonic() - start < duration:
+                time.sleep(interval)
+                live.update(next(frame_cycle))
+    
+    def _build_static_frame(self, banner) -> Text:
+        """Build a static (non-animated) frame for error fallback."""
+        if hasattr(banner, 'lines'):
+            lines = banner.lines
+        else:
+            lines = banner
+        
+        result = Text()
+        for i, line in enumerate(lines):
+            if i > 0:
+                result.append("\n")
+            result.append(line, style=Style(color="#00d7d7"))  # Default cyan
+        return result
     
     def _build_frame(
         self,
@@ -251,17 +339,23 @@ class FireAnimator:
         """Build a single animation frame with per-character coloring.
         
         Args:
-            banner: Banner object with lines
-            flame_lines: Indices of lines in flame zone
-            text_lines: Indices of lines in text zone
+            banner: Banner object or list of ASCII art lines
+            flame_lines: Indices of lines in the flame zone
+            text_lines: Indices of lines in the text zone
             rng: Random number generator for flicker
             
         Returns:
-            Rich Text object with colored frame
+            Rich Text object with colored characters
         """
+        # Handle both Banner objects and list of strings
+        if hasattr(banner, 'lines'):
+            lines = banner.lines
+        else:
+            lines = banner
+        
         result = Text()
         
-        for i, line in enumerate(banner.lines):
+        for i, line in enumerate(lines):
             if i > 0:
                 result.append("\n")
             
@@ -271,10 +365,50 @@ class FireAnimator:
                 text_line_idx = text_lines.index(i)
                 result.append(self._apply_text_coloring(line, text_line_idx, rng))
             else:
-                # No coloring for lines outside zones
+                # Shouldn't happen, but handle gracefully
                 result.append(line)
         
         return result
+
+    
+    def _detect_zones(self, banner) -> Tuple[List[int], List[int]]:
+        """Detect which lines are flame vs text zones.
+        
+        Uses a 60/40 split heuristic: top 60% is flame zone, bottom 40% is text zone.
+        Can be overridden with explicit flame_lines metadata from Banner object.
+        
+        Args:
+            banner: Banner object (with optional metadata.flame_lines) or list of ASCII art lines
+            
+        Returns:
+            Tuple of (flame_line_indices, text_line_indices)
+        """
+        # Handle both Banner objects and list of strings
+        if hasattr(banner, 'lines'):
+            lines = banner.lines
+        else:
+            lines = banner
+        
+        total_lines = len(lines)
+        
+        # Check for metadata override (defensive attribute checking)
+        if hasattr(banner, 'metadata') and hasattr(banner.metadata, 'flame_lines'):
+            flame_lines_override = banner.metadata.flame_lines
+            if flame_lines_override is not None and isinstance(flame_lines_override, (list, tuple)):
+                # Validate indices are within bounds
+                flame_lines = [i for i in flame_lines_override if 0 <= i < total_lines]
+                text_lines = [i for i in range(total_lines) if i not in flame_lines]
+                logger.debug(f"Using metadata flame_lines override: {flame_lines}")
+                return flame_lines, text_lines
+        
+        # Heuristic: 60/40 split
+        flame_cutoff = int(total_lines * 0.6)
+        flame_lines = list(range(flame_cutoff))
+        text_lines = list(range(flame_cutoff, total_lines))
+        
+        logger.debug(f"Using heuristic flame zone: {flame_cutoff}/{total_lines} lines")
+        return flame_lines, text_lines
+
     
     def _apply_flame_coloring(
         self,
@@ -285,18 +419,18 @@ class FireAnimator:
     ) -> Text:
         """Apply fire palette coloring to a flame zone line.
         
-        Hotter colors at the top, cooler at the bottom. Flicker probability
-        decreases toward the bottom. Uses RGB or 8-bit colors based on
-        terminal capabilities.
+        Calculates base palette index based on line position (hotter at top),
+        applies flicker effect with random palette offsets, and adjusts
+        flicker probability based on line position.
         
         Args:
-            line: Text line to color
-            line_idx: Index of this line in the banner
-            num_flame_lines: Total number of flame lines
-            rng: Random number generator
+            line: The ASCII art line to color
+            line_idx: Index of this line within the flame zone (0 = top)
+            num_flame_lines: Total number of lines in the flame zone
+            rng: Random number generator for flicker
             
         Returns:
-            Rich Text with fire coloring
+            Rich Text object with fire-colored characters
         """
         result = Text()
         
@@ -306,9 +440,9 @@ class FireAnimator:
         base_idx = int(2 + normalized_pos * 8)  # Range: 2-10
         
         # Flicker probability decreases toward bottom
-        flicker_prob = (1.0 - (normalized_pos * 0.5)) * self._intensity_multiplier
+        flicker_prob = (1.0 - (normalized_pos * 0.5)) * self._intensity_multiplier  # Range: 1.0 to 0.5
         
-        # Min/max palette indices for this line
+        # Clamp palette indices
         lo = max(0, base_idx - 2)
         hi = min(11, base_idx + 2)
         
@@ -318,14 +452,15 @@ class FireAnimator:
             else:
                 if rng.random() < flicker_prob:
                     # Apply flicker offset
-                    offset = rng.choice(self._FLICKER_OFFSETS)
+                    offset = rng.choice(FLICKER_OFFSETS)
                     idx = max(lo, min(hi, base_idx + offset))
                 else:
                     idx = base_idx
                 
-                result.append(char, style=self._palette_styles[idx])
+                result.append(char, style=self._palette[idx])
         
         return result
+
     
     def _apply_text_coloring(
         self,
@@ -333,35 +468,36 @@ class FireAnimator:
         text_line_idx: int,
         rng: random.Random
     ) -> Text:
-        """Apply text coloring with ember crack effect.
+        """Apply text coloring with ember crack effect to a text zone line.
         
-        Uses white → gray → dim gradient based on line position.
-        Randomly applies hot ember colors to simulate cracks.
-        Uses RGB or 8-bit colors based on terminal capabilities.
+        Uses white → gray → dim gradient based on line position, and applies
+        ember crack effect with random hot color spots. Crack probability
+        decreases with line position.
         
         Args:
-            line: Text line to color
-            text_line_idx: Index within text zone (0 = first text line)
-            rng: Random number generator
+            line: The ASCII art line to color
+            text_line_idx: Index of this line within the text zone (0 = top of text zone)
+            rng: Random number generator for ember cracks
             
         Returns:
-            Rich Text with text coloring and ember cracks
+            Rich Text object with text-colored characters and ember cracks
         """
         result = Text()
         
-        # Determine base text style and crack parameters
-        # Clamp to available text styles
-        style_idx = min(text_line_idx, len(self._TEXT_STYLES) - 1)
-        base_style = self._TEXT_STYLES[style_idx]
-        
-        # Crack probability and palette indices based on line position
+        # Determine base text style and crack effect based on line position
         if text_line_idx == 0:
+            # First text line: white-hot with frequent yellow cracks
+            base_style = Style(color="#FFFFFF", bold=True)
             crack_prob = 0.20 * self._intensity_multiplier
             crack_palette = (10, 11)  # Hot yellow
         elif text_line_idx == 1:
+            # Second text line: cooling glow with orange cracks
+            base_style = Style(color="#CCCCCC")
             crack_prob = 0.12 * self._intensity_multiplier
             crack_palette = (8, 9)  # Orange
         else:
+            # Remaining text lines: dim base with ember cracks
+            base_style = Style(color="#999999", dim=True)
             crack_prob = 0.06 * self._intensity_multiplier
             crack_palette = (2, 4)  # Ember
         
@@ -370,9 +506,9 @@ class FireAnimator:
                 result.append(char)
             else:
                 if rng.random() < crack_prob:
-                    # Ember crack effect - use the appropriate palette
+                    # Ember crack effect
                     idx = rng.choice(crack_palette)
-                    result.append(char, style=self._palette_styles[idx])
+                    result.append(char, style=self._palette[idx])
                 else:
                     result.append(char, style=base_style)
         

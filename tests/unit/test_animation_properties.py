@@ -346,3 +346,74 @@ def test_property_36_animation_color_degradation(lines, intensity):
         else:
             os.environ.pop("TERM", None)
 
+
+
+# Feature: peepbeefy-enhancements, Property 14: Animation Lazy Loading
+@given(
+    lines=banner_lines_strategy,
+    intensity=intensity_strategy
+)
+@settings(max_examples=50, deadline=1000)  # 1 second deadline to account for animation duration
+@pytest.mark.property_test
+def test_property_14_animation_lazy_loading(lines, intensity):
+    """Property 14: The FireAnimator module should only be imported when
+    render_animated() is called, not when BannerRenderer is instantiated.
+    This ensures that the animation system is lazy-loaded only when needed.
+    
+    **Validates: Requirements 8.6**
+    """
+    import sys
+    from src.banner import BannerRenderer, Banner, BannerMetadata
+    from src.themes import ThemeRegistry
+    
+    # Remove animation module from sys.modules if it exists
+    animation_module_name = "animation"
+    src_animation_module_name = "src.animation"
+    
+    was_loaded_animation = animation_module_name in sys.modules
+    was_loaded_src_animation = src_animation_module_name in sys.modules
+    
+    if was_loaded_animation:
+        del sys.modules[animation_module_name]
+    if was_loaded_src_animation:
+        del sys.modules[src_animation_module_name]
+    
+    try:
+        # Create a BannerRenderer instance
+        theme = ThemeRegistry.get_theme("CRT_Cyan")
+        renderer = BannerRenderer(theme)
+        
+        # Verify animation module is NOT loaded yet
+        assert animation_module_name not in sys.modules, \
+            "animation module should not be loaded when BannerRenderer is instantiated"
+        assert src_animation_module_name not in sys.modules, \
+            "src.animation module should not be loaded when BannerRenderer is instantiated"
+        
+        # Create a test banner
+        banner = Banner(
+            metadata=BannerMetadata(category="TEST", name="TEST"),
+            lines=lines
+        )
+        
+        # Create a console for rendering
+        console = Console()
+        
+        # Call render_animated() - this should trigger lazy loading
+        renderer.render_animated(
+            banner,
+            console,
+            duration=0.1,  # Very short duration for testing
+            fps=4,
+            intensity=intensity
+        )
+        
+        # Verify animation module IS NOW loaded
+        assert animation_module_name in sys.modules or src_animation_module_name in sys.modules, \
+            "animation module should be loaded after render_animated() is called"
+        
+    finally:
+        # Restore original state
+        if not was_loaded_animation and animation_module_name in sys.modules:
+            del sys.modules[animation_module_name]
+        if not was_loaded_src_animation and src_animation_module_name in sys.modules:
+            del sys.modules[src_animation_module_name]

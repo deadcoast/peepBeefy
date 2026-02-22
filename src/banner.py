@@ -277,8 +277,9 @@ class BannerDatabase:
                 # Skip definition lines (they start with #)
                 
             elif state == ParserState.HEADER:
-                if line.strip().startswith("-") and line.strip() != "---":
-                    # This is the separator line under the header (but not a delimiter), skip it
+                stripped = line.strip()
+                if stripped and all(c == '-' for c in stripped) and len(stripped) > 3:
+                    # This is the separator line under the header (many dashes, more than delimiter), skip it
                     continue
                 elif line.strip() == "---":
                     # Empty banner, skip it
@@ -734,45 +735,6 @@ class BannerRenderer:
         )
         
         return Banner(metadata=metadata, lines=fallback_lines)
-    def render_animated(
-        self,
-        banner: Banner,
-        console: Console,
-        duration: float = 3.0,
-        fps: int = 8,
-        intensity: str = "normal"
-    ) -> None:
-        """Render an animated banner using fire effect.
-
-        Lazy-loads the FireAnimator only when animation is enabled.
-        Falls back to static rendering if animation fails.
-
-        Args:
-            banner: Banner object to render
-            console: Rich Console instance for rendering
-            duration: Animation duration in seconds
-            fps: Frames per second for animation
-            intensity: Animation intensity level ("subtle", "normal", "intense")
-        """
-        try:
-            # Lazy-load FireAnimator only when animation is enabled
-            from animation import FireAnimator
-
-            # Create animator with configured intensity
-            animator = FireAnimator(intensity=intensity)
-
-            # Run the animation
-            animator.animate_banner(banner, console, duration=duration, fps=fps)
-
-            logger.info(f"Animated banner {banner.metadata.category}:{banner.metadata.name} "
-                       f"for {duration}s at {fps}fps with {intensity} intensity")
-
-        except Exception as e:
-            # Fallback to static rendering on any error
-            logger.error(f"Animation failed: {e}, falling back to static rendering")
-            panel = self.render_static(banner, console)
-            console.print(panel)
-
     
     def select_banner_with_adaptation(
         self,
