@@ -14,6 +14,7 @@ No process termination in this version (by design).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sys
@@ -42,6 +43,10 @@ from banner import BannerDatabase, BannerRenderer
 from config import ConfigManager
 from themes import ThemeRegistry
 from logging_config import setup_logging
+
+# Initialize logging
+setup_logging(debug=False)
+logger = logging.getLogger(__name__)
 
 # --- Rich / Typer setup -------------------------------------------------------
 
@@ -878,7 +883,6 @@ MENU_ITEMS: List[Tuple[str, str, str]] = [
 def print_header() -> None:
     """Display the peepBeefy banner using the banner system.
     
-    Checks for first run and launches setup wizard if needed.
     Loads configuration, initializes the banner database, selects a banner
     based on user preferences, and renders it with the configured theme.
     Supports both static and animated rendering based on configuration.
@@ -888,46 +892,51 @@ def print_header() -> None:
     
     # Try to load banner system with graceful fallback
     try:
-        # Check for first run and launch wizard if needed
+        # Load configuration (creates defaults if missing)
         config_manager = ConfigManager()
+        config = config_manager.load()
         
-        if config_manager.is_first_run():
-            # Import wizard module
-            from wizard import SetupWizard
-            
-            # Launch setup wizard
-            assets_dir = Path(__file__).parent.parent / ".assets"
-            wizard = SetupWizard(console, assets_dir)
-            config = wizard.run()
-            
-            # Save configuration
-            config_manager.save(config)
-            
-            # Mark first run as complete
-            config_manager.mark_first_run_complete()
-        else:
-            # Load existing configuration
-            config = config_manager.load()
-        
-        # Get theme
+        # Get theme from configuration
         theme = ThemeRegistry.get_theme(config.theme_variant)
+        logger.info(f"Using theme: {config.theme_variant}")
         
         # Initialize banner database with assets directory
         assets_dir = Path(__file__).parent.parent / ".assets"
         banner_db = BannerDatabase(assets_dir)
         
-        # Initialize banner renderer
+        # Load banners from database
+        banners = banner_db.load_banners()
+        
+        # Select banner based on configuration
+        if config.banner.mode == "fixed" and config.banner.selected_banner:
+            # Fixed mode: use specific banner
+            try:
+                category, name = config.banner.selected_banner.split(":", 1)
+                banner = banner_db.get_banner(category=category, name=name)
+                logger.info(f"Selected fixed banner: {config.banner.selected_banner}")
+            except (ValueError, KeyError):
+                logger.warning(f"Fixed banner {config.banner.selected_banner} not found, using random")
+                banner = banner_db.get_random_banner()
+        elif config.banner.mode == "category":
+            # Category mode: random from selected categories
+            banner = banner_db.get_random_banner(categories=config.banner.selected_categories)
+            logger.info(f"Selected random banner from categories: {config.banner.selected_categories}")
+        else:
+            # Random mode: random from all categories
+            banner = banner_db.get_random_banner()
+            logger.info("Selected random banner from all categories")
+        
+        # Initialize banner renderer with theme
         renderer = BannerRenderer(theme)
         
-        # Select banner with terminal size adaptation
-        banner = renderer.select_banner_with_adaptation(banner_db, console, config)
+        # Validate terminal size
+        if not renderer.validate_terminal_size(banner, console):
+            logger.warning(f"Banner too large for terminal, using fallback")
+            banner = renderer.get_fallback_banner()
         
         # Check if animation is enabled in configuration
         if config.banner.animation_enabled:
-            # Log animation status at INFO level
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"Animation enabled: duration={config.banner.animation_duration}s, "
+            logger.info(f"Rendering animated banner: duration={config.banner.animation_duration}s, "
                        f"fps={config.banner.animation_fps}, intensity={config.banner.animation_intensity}")
             
             # Render animated banner
@@ -939,34 +948,16 @@ def print_header() -> None:
                 intensity=config.banner.animation_intensity
             )
         else:
-            # Log animation status at INFO level
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info("Animation disabled, rendering static banner")
+            logger.info("Rendering static banner")
             
             # Render static banner
             panel = renderer.render_static(banner, console)
-            
-            # Add title and subtitle
-            title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")
-            subtitle = Text("Find and display the heavy background stuff (gamer-friendly).", style="peep.muted")
-            
-            # Create a new panel with the banner content but with title and subtitle
-            final_panel = Panel(
-                panel.renderable,
-                title=title,
-                subtitle=subtitle,
-                box=box.HEAVY,
-                border_style="peep.accent",
-            )
-            
-            console.print(final_panel)
+            console.print(panel)
         
     except Exception as e:
         # Fallback to original hardcoded banner if anything fails
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Failed to load banner system: {e}", exc_info=True)
+        logger.info("Using hardcoded fallback banner")
         
         # Use original hardcoded banner as fallback
         title = Text.from_markup(f"{BRANDED_NAME}  [peep.muted]v{VERSION}[/]")

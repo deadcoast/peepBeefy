@@ -8,18 +8,18 @@ The implementation will use **Python** with the Rich library for terminal render
 
 ## Tasks
 
-- [ ] 1. Phase 1: Core Infrastructure - Banner System Foundation
-  - [ ] 1.1 Create banner.py module with data models
+- [x] 1. Phase 1: Core Infrastructure - Banner System Foundation
+  - [x] 1.1 Create banner.py module with data models
     - Implement `BannerMetadata` dataclass with category, name, author, description, dimensions, and animation_compatible fields
     - Implement `Banner` dataclass with metadata and lines, including width and height properties
     - Add type hints and docstrings for all classes
     - _Requirements: 1.1, 1.3, 4.1, 9.1_
   
-  - [ ]* 1.2 Write property test for Banner data model
+  - [x] 1.2 Write property test for Banner data model
     - **Property 3: Banner Parsing Preserves Content**
     - **Validates: Requirements 1.5, 4.2, 4.5**
   
-  - [ ] 1.3 Implement BannerDatabase class with ASCII parser
+  - [x] 1.3 Implement BannerDatabase class with ASCII parser
     - Create `BannerDatabase` class with `__init__` accepting assets_dir Path
     - Implement state machine parser for ASCII database format (INITIAL → DELIMITER → DEFINITIONS → HEADER → CONTENT states)
     - Parse category:name headers and extract banner content lines
@@ -28,42 +28,42 @@ The implementation will use **Python** with the Rich library for terminal render
     - Return Dict[str, List[Banner]] mapping categories to banner lists
     - _Requirements: 1.1, 1.3, 4.1, 4.2, 4.5_
   
-  - [ ]* 1.4 Write property tests for BannerDatabase parser
+  - [x] 1.4 Write property tests for BannerDatabase parser
     - **Property 2: Banner Category Grouping**
     - **Property 38: Parsing Error Continuation**
     - **Validates: Requirements 1.3, 4.3**
   
-  - [ ] 1.5 Implement banner selection methods in BannerDatabase
+  - [x] 1.5 Implement banner selection methods in BannerDatabase
     - Implement `get_banner()` method with optional category and name parameters
     - Implement `get_random_banner()` with optional category filtering
     - Implement `list_categories()` to return available categories
     - Add hardcoded fallback banner for error recovery
     - _Requirements: 1.2, 1.4, 10.1, 10.2_
   
-  - [ ]* 1.6 Write property test for random banner selection
+  - [x] 1.6 Write property test for random banner selection
     - **Property 1: Banner Random Selection Distribution**
     - **Validates: Requirements 1.2, 1.4**
 
-  - [ ] 1.7 Add banner metadata parsing support
+  - [x] 1.7 Add banner metadata parsing support
     - Parse metadata comments (lines starting with "# key: value") after banner headers
     - Extract author, description, animation_compatible, flame_lines fields
     - Use banner name as default description if metadata missing
     - Handle unknown metadata keys gracefully (forward compatibility)
     - _Requirements: 9.1, 9.2, 9.5_
   
-  - [ ]* 1.8 Write property tests for banner metadata
+  - [x] 1.8 Write property tests for banner metadata
     - **Property 19: Banner Metadata Parsing**
     - **Property 20: Banner Metadata Default Fallback**
     - **Validates: Requirements 9.1, 9.2, 9.5**
 
-- [ ] 2. Phase 1: Core Infrastructure - Configuration System
-  - [ ] 2.1 Create config.py module with configuration data models
+- [x] 2. Phase 1: Core Infrastructure - Configuration System
+  - [x] 2.1 Create config.py module with configuration data models
     - Implement `BannerConfig` dataclass with mode, selected_banner, selected_categories, animation settings
     - Implement `AppConfig` dataclass with version, first_run_complete, theme_variant, banner, user_preferences
     - Add default values matching design specification
     - _Requirements: 2.1, 2.2, 2.3, 6.7_
   
-  - [ ] 2.2 Implement ConfigManager class with JSON persistence
+  - [x] 2.2 Implement ConfigManager class with JSON persistence
     - Create `ConfigManager` class with CONFIG_DIR and CONFIG_FILE class variables
     - Implement `load()` method to read JSON config from disk
     - Implement `save()` method with atomic write (temp file + rename)
@@ -71,13 +71,13 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle FileNotFoundError by returning default AppConfig
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
   
-  - [ ]* 2.3 Write property tests for configuration persistence
+  - [x] 2.3 Write property tests for configuration persistence
     - **Property 5: Configuration Round-Trip Preservation**
     - **Property 6: Configuration Directory Creation**
     - **Property 7: Configuration JSON Validity**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 3.6, 6.2, 6.3, 6.7, 7.5, 11.1**
   
-  - [ ] 2.4 Add configuration validation and error handling
+  - [x] 2.4 Add configuration validation and error handling
     - Implement schema validation in `load()` method
     - Validate animation_duration range (0.5-10.0)
     - Validate animation_fps range (4-30)
@@ -86,24 +86,24 @@ The implementation will use **Python** with the Rich library for terminal render
     - Backup corrupted config files before creating fresh config
     - _Requirements: 6.4, 6.5, 10.6, 10.7_
   
-  - [ ]* 2.5 Write property tests for configuration validation
+  - [x] 2.5 Write property tests for configuration validation
     - **Property 8: Configuration Schema Validation**
     - **Property 26: Corrupted Config Recovery**
     - **Validates: Requirements 6.4, 10.6, 10.7**
 
-  - [ ] 2.6 Implement configuration migration system
+  - [x] 2.6 Implement configuration migration system
     - Implement `migrate()` method with version chain support
     - Add `is_first_run()` method to detect missing config
     - Create migration function template for future schema changes
     - Log migration operations at INFO level
     - _Requirements: 6.6, 12.1, 14.3_
   
-  - [ ]* 2.7 Write property test for configuration migration
+  - [x] 2.7 Write property test for configuration migration
     - **Property 9: Configuration Version Migration**
     - **Validates: Requirements 6.6**
 
-- [ ] 3. Phase 1: Core Infrastructure - Theme System
-  - [ ] 3.1 Create themes.py module with theme data models
+- [x] 3. Phase 1: Core Infrastructure - Theme System
+  - [x] 3.1 Create themes.py module with theme data models
     - Implement `ColorPalette` dataclass with primary, highlight, success, error, warning, dim, text colors
     - Implement `Theme` class with name, palette, and styling methods
     - Implement `get_box_style()` returning box.DOUBLE
@@ -111,7 +111,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `style_command()` and `style_description()` methods
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
   
-  - [ ] 3.2 Implement ThemeRegistry with predefined themes
+  - [x] 3.2 Implement ThemeRegistry with predefined themes
     - Create `ThemeRegistry` class with THEMES class variable
     - Define CRT_Cyan theme (default) with cyan/white palette
     - Define Amber_Terminal theme with amber/orange palette
@@ -121,12 +121,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `list_themes()` class method
     - _Requirements: 7.2, 7.6, 7.7_
   
-  - [ ]* 3.3 Write property tests for theme system
+  - [x] 3.3 Write property tests for theme system
     - **Property 10: Theme Box Style Consistency**
     - **Property 11: Theme Color Consistency**
     - **Validates: Requirements 7.3, 7.4**
   
-  - [ ] 3.4 Implement terminal capability detection
+  - [x] 3.4 Implement terminal capability detection
     - Create `TerminalCapabilities` class with static methods
     - Implement `supports_rgb()` checking COLORTERM environment variable
     - Implement `supports_256_color()` checking terminal type
@@ -134,12 +134,12 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement `get_fallback_palette()` for ANSI color fallbacks
     - _Requirements: 15.1, 15.2, 15.3_
   
-  - [ ]* 3.5 Write property test for terminal color fallback
+  - [x] 3.5 Write property test for terminal color fallback
     - **Property 35: Terminal Color Capability Fallback**
     - **Validates: Requirements 15.2**
 
-- [ ] 4. Phase 1: Core Infrastructure - Banner Renderer
-  - [ ] 4.1 Implement BannerRenderer class for static rendering
+- [x] 4. Phase 1: Core Infrastructure - Banner Renderer
+  - [x] 4.1 Implement BannerRenderer class for static rendering
     - Create `BannerRenderer` class with theme parameter
     - Implement `render_static()` method returning Rich Panel
     - Apply theme colors to banner text
@@ -147,30 +147,30 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle empty banners gracefully
     - _Requirements: 1.6, 7.3, 7.4_
   
-  - [ ] 4.2 Add terminal size validation to BannerRenderer
+  - [x] 4.2 Add terminal size validation to BannerRenderer
     - Implement `validate_terminal_size()` method
     - Check banner width and height against console dimensions
     - Return boolean indicating if banner fits
     - _Requirements: 10.4_
   
-  - [ ]* 4.3 Write property test for banner dimension validation
+  - [x] 4.3 Write property test for banner dimension validation
     - **Property 24: Banner Dimension Validation**
     - **Validates: Requirements 10.4**
   
-  - [ ] 4.4 Implement banner selection with size adaptation
+  - [x] 4.4 Implement banner selection with size adaptation
     - Implement `get_fallback_banner()` method returning hardcoded default
     - Create banner selection algorithm with terminal size filtering
     - Implement fallback chain: selected → category → random → fallback
     - Log banner selection decisions at INFO level
     - _Requirements: 10.1, 10.2, 10.5, 14.1_
   
-  - [ ]* 4.5 Write property tests for error recovery
+  - [x] 4.5 Write property tests for error recovery
     - **Property 22: Banner Load Error Recovery**
     - **Property 25: Oversized Banner Adaptation**
     - **Validates: Requirements 10.2, 10.5**
 
-- [ ] 5. Phase 1: Core Infrastructure - Integration
-  - [ ] 5.1 Integrate banner system into main.py startup
+- [x] 5. Phase 1: Core Infrastructure - Integration
+  - [x] 5.1 Integrate banner system into main.py startup
     - Import banner, config, and themes modules
     - Load configuration at startup
     - Initialize BannerDatabase with assets directory
@@ -179,7 +179,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle all errors gracefully with fallbacks
     - _Requirements: 1.1, 1.2, 2.7, 7.7_
   
-  - [ ]* 5.2 Write unit tests for main.py integration
+  - [x] 5.2 Write unit tests for main.py integration
     - Test banner displays on startup
     - Test configuration loads correctly
     - Test fallback works when files missing
@@ -209,7 +209,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Support metadata override via flame_lines field
     - _Requirements: 3.4, 3.5_
   
-  - [ ]* 7.4 Write property test for flame zone detection
+  - [ ] 7.4 Write property test for flame zone detection
     - **Property 15: Fire Animation Dimension Adaptation**
     - **Property 16: Flame Zone Coloring Separation**
     - **Validates: Requirements 3.4, 3.5**
@@ -235,7 +235,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Apply intensity to both flame and text coloring
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
   
-  - [ ]* 7.8 Write property tests for animation behavior
+  - [ ] 7.8 Write property tests for animation behavior
     - **Property 17: Animation Duration Respect**
     - **Property 18: Animation Intensity Differentiation**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.5**
@@ -248,7 +248,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Handle animation errors with fallback to static rendering
     - _Requirements: 3.1, 3.6, 3.7, 8.6_
   
-  - [ ]* 8.2 Write property test for animation lazy loading
+  - [ ] 8.2 Write property test for animation lazy loading
     - **Property 14: Animation Lazy Loading**
     - **Validates: Requirements 8.6**
   
@@ -258,7 +258,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Log animation status at INFO level
     - _Requirements: 3.6, 3.7_
   
-  - [ ]* 8.4 Write unit tests for animation integration
+  - [ ] 8.4 Write unit tests for animation integration
     - Test animation displays when enabled
     - Test static banner displays when disabled
     - Test fallback to static on animation error
@@ -273,7 +273,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Support `force_reload` parameter to bypass cache
     - _Requirements: 8.1, 8.5_
   
-  - [ ]* 9.2 Write property test for cache invalidation
+  - [ ] 9.2 Write property test for cache invalidation
     - **Property 12: Banner Cache Invalidation**
     - **Validates: Requirements 8.5**
   
@@ -283,7 +283,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Cycle through pre-computed frames during animation
     - _Requirements: 8.3_
   
-  - [ ]* 9.4 Write performance test for banner display
+  - [ ] 9.4 Write performance test for banner display
     - **Property 13: Banner Display Performance**
     - **Validates: Requirements 8.3**
 
@@ -336,7 +336,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Mark first run as complete
     - _Requirements: 12.1, 12.2, 12.6_
   
-  - [ ]* 11.8 Write integration test for first-run wizard
+  - [ ] 11.8 Write integration test for first-run wizard
     - Test wizard launches on first run
     - Test configuration is saved after wizard
     - Test wizard can be skipped
@@ -376,7 +376,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Preserve current config as defaults in wizard
     - _Requirements: 12.7_
   
-  - [ ]* 12.6 Write unit tests for settings menu
+  - [ ] 12.6 Write unit tests for settings menu
     - Test menu displays current configuration
     - Test configuration changes are saved
     - Test input validation works correctly
@@ -390,7 +390,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Scale banners to fit preview area if needed
     - _Requirements: 2.6, 13.1, 13.2_
   
-  - [ ]* 13.2 Write property tests for banner preview
+  - [ ] 13.2 Write property tests for banner preview
     - **Property 27: Banner Preview Scaling**
     - **Property 37: Banner Preview Display**
     - **Validates: Requirements 2.6, 13.2**
@@ -401,7 +401,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Show 10-20 banners per page based on terminal size
     - _Requirements: 13.4_
   
-  - [ ]* 13.4 Write property test for preview pagination
+  - [ ] 13.4 Write property test for preview pagination
     - **Property 28: Banner Preview Pagination**
     - **Validates: Requirements 13.4**
   
@@ -411,7 +411,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Show animation compatibility indicator
     - _Requirements: 9.3, 13.5_
   
-  - [ ]* 13.6 Write property test for preview metadata
+  - [ ] 13.6 Write property test for preview metadata
     - **Property 29: Preview Metadata Display**
     - **Validates: Requirements 9.3, 13.5**
   
@@ -421,7 +421,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Use 2-3 columns for wider terminals
     - _Requirements: 13.6_
   
-  - [ ]* 13.8 Write property test for adaptive layout
+  - [ ] 13.8 Write property test for adaptive layout
     - **Property 30: Adaptive Preview Layout**
     - **Validates: Requirements 13.6**
   
@@ -431,7 +431,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Filter by animation_compatible when animation enabled
     - _Requirements: 9.4, 13.3_
   
-  - [ ]* 13.10 Write property test for animation compatibility filtering
+  - [ ] 13.10 Write property test for animation compatibility filtering
     - **Property 21: Animation Compatibility Filtering**
     - **Validates: Requirements 9.4**
 
@@ -466,7 +466,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Implement "recent commands" quick-access list
     - _Requirements: 5.4, 5.5_
   
-  - [ ]* 14.6 Write property test for command history
+  - [ ] 14.6 Write property test for command history
     - **Property 40: Recent Commands Tracking**
     - **Validates: Requirements 5.5**
   
@@ -476,7 +476,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Maintain command-teaching approach (show full syntax)
     - _Requirements: 5.6, 5.7_
   
-  - [ ]* 14.8 Write property test for menu input mapping
+  - [ ] 14.8 Write property test for menu input mapping
     - **Property 39: Menu Input Mapping**
     - **Validates: Requirements 5.3**
 
@@ -497,7 +497,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Log cache operations at DEBUG level
     - _Requirements: 14.1, 14.2_
 
-  - [ ]* 16.3 Write property tests for logging
+  - [ ] 16.3 Write property tests for logging
     - **Property 23: Banner Error Logging**
     - **Property 31: Banner Selection Logging**
     - **Validates: Requirements 10.3, 14.1, 14.2**
@@ -508,7 +508,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Log validation errors at WARNING level
     - _Requirements: 14.3_
   
-  - [ ]* 16.5 Write property test for configuration logging
+  - [ ] 16.5 Write property test for configuration logging
     - **Property 32: Configuration Change Logging**
     - **Validates: Requirements 14.3**
   
@@ -518,7 +518,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Log detailed parsing and rendering information
     - _Requirements: 14.4_
   
-  - [ ]* 16.7 Write property test for debug mode
+  - [ ] 16.7 Write property test for debug mode
     - **Property 33: Debug Mode Verbosity**
     - **Validates: Requirements 14.4**
   
@@ -529,7 +529,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Delete oldest rotated file when limit reached
     - _Requirements: 14.6_
   
-  - [ ]* 16.9 Write property test for log rotation
+  - [ ] 16.9 Write property test for log rotation
     - **Property 34: Log File Rotation**
     - **Validates: Requirements 14.6**
 
@@ -552,7 +552,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Map fire palette to closest 8-bit colors
     - _Requirements: 15.5_
 
-  - [ ]* 17.4 Write property test for animation color degradation
+  - [ ] 17.4 Write property test for animation color degradation
     - **Property 36: Animation Color Degradation**
     - **Validates: Requirements 15.5**
   
@@ -568,7 +568,7 @@ The implementation will use **Python** with the Rich library for terminal render
     - Show "peepBeefy" in styled text
     - _Requirements: 15.4_
   
-  - [ ]* 17.7 Write unit tests for terminal compatibility
+  - [ ] 17.7 Write unit tests for terminal compatibility
     - Test RGB detection works correctly
     - Test ANSI fallback is applied
     - Test minimal banner displays on small terminals
@@ -600,13 +600,13 @@ The implementation will use **Python** with the Rich library for terminal render
     - Add usage examples for new commands
     - _Requirements: All_
   
-  - [ ]* 18.5 Run all property tests and verify coverage
+  - [ ] 18.5 Run all property tests and verify coverage
     - Execute all 40 property tests
     - Verify minimum 100 iterations per test
     - Confirm all properties pass
     - _Requirements: All_
   
-  - [ ]* 18.6 Run all unit tests and verify coverage
+  - [ ] 18.6 Run all unit tests and verify coverage
     - Execute complete unit test suite
     - Verify >80% code coverage
     - Fix any failing tests
