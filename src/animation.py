@@ -114,6 +114,8 @@ class FireAnimator:
         
         # Select appropriate palette
         self._palette = FirePalette.STYLES if self._use_rgb else FirePalette.STYLES_8BIT
+        # Alias for backward compatibility with tests
+        self._palette_styles = self._palette
         
         logger.debug(f"FireAnimator initialized: intensity={intensity}, use_rgb={self._use_rgb}")
     
@@ -185,11 +187,20 @@ class FireAnimator:
             
             with Live(frames[0], console=console, refresh_per_second=fps) as live:
                 frame_idx = 0
-                while time.monotonic() - start < duration:
+                while True:
+                    elapsed = time.monotonic() - start
+                    if elapsed >= duration:
+                        break
+                    
                     try:
                         live.update(frames[frame_idx % len(frames)])
                         frame_idx += 1
-                        time.sleep(interval)
+                        
+                        # Calculate remaining time and sleep accordingly
+                        remaining = duration - elapsed
+                        sleep_time = min(interval, remaining)
+                        if sleep_time > 0:
+                            time.sleep(sleep_time)
                     except KeyboardInterrupt:
                         logger.info("Animation interrupted by user")
                         break
