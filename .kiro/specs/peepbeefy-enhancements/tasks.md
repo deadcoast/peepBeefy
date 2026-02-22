@@ -533,42 +533,42 @@ The implementation will use **Python** with the Rich library for terminal render
     - **Property 34: Log File Rotation**
     - **Validates: Requirements 14.6**
 
-- [-] 17. Phase 4: Polish and Optimization - Terminal Compatibility
-  - [ ] 17.1 Implement RGB color detection
+- [x] 17. Phase 4: Polish and Optimization - Terminal Compatibility
+  - [x] 17.1 Implement RGB color detection
     - Check COLORTERM environment variable for "truecolor" or "24bit"
     - Check TERM environment variable for RGB support indicators
     - Return boolean indicating RGB support
     - _Requirements: 15.1_
   
-  - [ ] 17.2 Implement ANSI color fallback palette
+  - [x] 17.2 Implement ANSI color fallback palette
     - Create mapping from RGB hex codes to closest ANSI colors
     - Update Theme.get_fallback_palette() to return ANSI colors
     - Apply fallback palette when RGB not supported
     - _Requirements: 15.2_
   
-  - [ ] 17.3 Add color degradation to fire animation
+  - [x] 17.3 Add color degradation to fire animation
     - Detect terminal color support before animation
     - Use 8-bit color palette when RGB not available
     - Map fire palette to closest 8-bit colors
     - _Requirements: 15.5_
 
-  - [ ] 17.4 Write property test for animation color degradation
+  - [x] 17.4 Write property test for animation color degradation
     - **Property 36: Animation Color Degradation**
     - **Validates: Requirements 15.5**
   
-  - [ ] 17.5 Implement terminal size detection
+  - [x] 17.5 Implement terminal size detection
     - Use Rich Console.size to get dimensions
     - Handle terminals that don't report size
     - Default to 80x24 if size unavailable
     - _Requirements: 15.3_
   
-  - [ ] 17.6 Add minimal banner for small terminals
+  - [x] 17.6 Add minimal banner for small terminals
     - Detect terminals smaller than 40x10
     - Display text-only header instead of ASCII art
     - Show "peepBeefy" in styled text
     - _Requirements: 15.4_
   
-  - [ ] 17.7 Write unit tests for terminal compatibility
+  - [x] 17.7 Write unit tests for terminal compatibility
     - Test RGB detection works correctly
     - Test ANSI fallback is applied
     - Test minimal banner displays on small terminals
