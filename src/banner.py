@@ -28,6 +28,9 @@ class BannerMetadata:
         description: Optional description of the banner
         dimensions: Tuple of (width, height) for the banner, defaults to (0, 0)
         animation_compatible: Whether this banner works well with fire animation
+        flame_lines: Optional list of line indices that represent the flame zone for fire animation
+        recommended_preset: Optional suggested color preset name for this banner
+        color_zones: Optional dictionary mapping zone names to lists of line indices
     """
     category: str
     name: str
@@ -35,6 +38,9 @@ class BannerMetadata:
     description: Optional[str] = None
     dimensions: Tuple[int, int] = (0, 0)
     animation_compatible: bool = True
+    flame_lines: Optional[List[int]] = None
+    recommended_preset: Optional[str] = None
+    color_zones: Optional[Dict[str, List[int]]] = None
 
 
 @dataclass
@@ -88,6 +94,39 @@ class BannerDatabase:
         _cache: Dictionary mapping category names to lists of banners
         _cache_timestamp: Timestamp of when the cache was last updated
     """
+    
+    # Distro name aliases for banner matching
+    DISTRO_ALIASES = {
+        'coreos': 'container_linux',
+        'container linux': 'container_linux',
+        'rhel': 'redhat',
+        'red hat': 'redhat',
+        'opensuse': 'suse',
+        'ubuntu': 'ubuntu',
+        'debian': 'debian',
+        'arch': 'arch',
+        'manjaro': 'manjaro',
+        'fedora': 'fedora',
+        'centos': 'centos',
+        'mint': 'linuxmint',
+        'linux mint': 'linuxmint',
+        'elementary': 'elementary',
+        'pop': 'pop_os',
+        'pop os': 'pop_os',
+        'kali': 'kali',
+        'gentoo': 'gentoo',
+        'slackware': 'slackware',
+        'alpine': 'alpine',
+        'void': 'void',
+        'nixos': 'nixos',
+        'freebsd': 'freebsd',
+        'openbsd': 'openbsd',
+        'netbsd': 'netbsd',
+        'macos': 'macos',
+        'mac os': 'macos',
+        'darwin': 'macos',
+        'windows': 'windows',
+    }
     
     def __init__(self, assets_dir: Path):
         """Initialize the BannerDatabase.
@@ -548,6 +587,78 @@ class BannerDatabase:
         )
         
         return Banner(metadata=metadata, lines=fallback_lines)
+    
+    def get_banner_by_distro(self, distro_name: str) -> Banner:
+        """Retrieve a banner by distro name with intelligent matching.
+        
+        Implements case-insensitive matching, alias support, and partial word matching
+        to find the best banner for a given distro name.
+        
+        Args:
+            distro_name: The distro name to search for (e.g., "Ubuntu", "arch", "Red Hat")
+        
+        Returns:
+            Banner object matching the distro, or fallback banner if not found
+        """
+        # Load banners if not already loaded
+        if not self._cache:
+            self._cache = self.load_banners()
+        
+        # If no banners loaded, return fallback
+        if not self._cache:
+            logger.warning("No banners available, using fallback")
+            return self._get_fallback_banner()
+        
+        # Normalize the distro name to lowercase for matching
+        distro_lower = distro_name.lower().strip()
+        
+        # Handle empty distro name
+        if not distro_lower:
+            logger.warning("Empty distro name provided, using fallback")
+            return self._get_fallback_banner()
+        
+        # Step 1: Check if there's an alias for this distro name
+        if distro_lower in self.DISTRO_ALIASES:
+            distro_lower = self.DISTRO_ALIASES[distro_lower]
+            logger.debug(f"Mapped distro '{distro_name}' to alias '{distro_lower}'")
+        
+        # Step 2: Try exact case-insensitive match on banner names
+        for category, banners in self._cache.items():
+            for banner in banners:
+                if banner.metadata.name.lower() == distro_lower:
+                    logger.info(f"Found exact match for distro '{distro_name}': {category}:{banner.metadata.name}")
+                    return banner
+        
+        # Step 3: Try case-insensitive prefix matching on banner names
+        for category, banners in self._cache.items():
+            for banner in banners:
+                banner_name_lower = banner.metadata.name.lower()
+                if banner_name_lower.startswith(distro_lower) or distro_lower.startswith(banner_name_lower):
+                    logger.info(f"Found prefix match for distro '{distro_name}': {category}:{banner.metadata.name}")
+                    return banner
+        
+        # Step 4: Try partial word matching (check if any word in distro name matches banner name)
+        distro_words = distro_lower.split()
+        for category, banners in self._cache.items():
+            for banner in banners:
+                banner_name_lower = banner.metadata.name.lower()
+                banner_words = banner_name_lower.split()
+                
+                # Check if any word from distro name is in banner name
+                for distro_word in distro_words:
+                    if distro_word and (distro_word in banner_words or distro_word in banner_name_lower):
+                        logger.info(f"Found partial match for distro '{distro_name}': {category}:{banner.metadata.name}")
+                        return banner
+                
+                # Check if any word from banner name is in distro name
+                for banner_word in banner_words:
+                    if banner_word and (banner_word in distro_words or banner_word in distro_lower):
+                        logger.info(f"Found partial match for distro '{distro_name}': {category}:{banner.metadata.name}")
+                        return banner
+        
+        # Step 5: No match found, return fallback banner
+        logger.warning(f"No banner found for distro '{distro_name}', using fallback")
+        return self._get_fallback_banner()
 
 
 

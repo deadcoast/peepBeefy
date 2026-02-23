@@ -1,0 +1,4 @@
+# file: C:\Users\ryanf\github\_new\peepBeefy\src\terminal_detect.py
+# hypothesis_version: 6.148.2
+
+[1000.0, 65535.0, 255, 500, 1000, 10586, 14931, '\x07', '\x1b\\', '.', '24bit', '256color', '8bit', 'COLORTERM', 'ConEmuANSI', 'ON', 'RGB', 'SSH_CLIENT', 'SSH_CONNECTION', 'TERM', 'ansi', 'color', 'darwin', 'default', 'freebsd', 'linux', 'netbsd', 'openbsd', 'rgb', 'screen', 'tmux', 'truecolor', 'windows', 'xterm-kitty']

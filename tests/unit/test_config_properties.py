@@ -110,7 +110,10 @@ def test_config_round_trip_preservation(
         loaded_config = config_manager.load()
         
         # Assert
-        assert loaded_config.version == original_config.version
+        # Note: version may be migrated to CURRENT_VERSION, so we check >= original
+        from src.config import CURRENT_VERSION
+        assert loaded_config.version >= original_config.version
+        assert loaded_config.version <= CURRENT_VERSION
         assert loaded_config.first_run_complete == original_config.first_run_complete
         assert loaded_config.theme_variant == original_config.theme_variant
         assert loaded_config.banner.mode == original_config.banner.mode
@@ -299,7 +302,9 @@ def test_corrupted_config_recovery(corrupted_json):
         loaded_config = config_manager.load()
         
         # Assert - should return default config
-        assert loaded_config.version == 1
+        # Note: default config uses CURRENT_VERSION
+        from src.config import CURRENT_VERSION
+        assert loaded_config.version == CURRENT_VERSION
         assert loaded_config.theme_variant == "CRT_Cyan"
         assert loaded_config.banner.mode == "random"
         assert loaded_config.banner.animation_duration == 3.0

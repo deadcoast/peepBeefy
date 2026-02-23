@@ -11,6 +11,69 @@ from rich import box
 from rich.text import Text
 
 
+def adjust_color_for_background(hex_color: str, bg_color: 'RGB', method: str = "hsl") -> str:
+    """Adjust a color for readability on a given background.
+    
+    Ensures text colors meet minimum lightness requirements:
+    - Dark backgrounds: lightness >= 0.65
+    - Light backgrounds: lightness <= 0.4
+    
+    Args:
+        hex_color: Hex color string to adjust (e.g., "#00d7d7")
+        bg_color: RGB background color
+        method: Adjustment method - "hsl" or "overlay"
+        
+    Returns:
+        Adjusted hex color string
+    """
+    from src.color_util import RGB
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Parse the color
+        color = RGB.from_hex(hex_color)
+        is_light_bg = bg_color.is_light()
+        
+        if method == "hsl":
+            # HSL-based adjustment preserving hue and saturation
+            if is_light_bg:
+                # Light background: ensure lightness <= 0.4
+                adjusted = color.set_light(0.4, at_most=True)
+            else:
+                # Dark background: ensure lightness >= 0.65
+                adjusted = color.set_light(0.65, at_least=True)
+        elif method == "overlay":
+            # Overlay-based adjustment
+            if is_light_bg:
+                # Darken by overlaying with black
+                black = RGB(0, 0, 0)
+                adjusted = color.overlay(black, 0.3)
+                # Ensure we meet the threshold
+                if adjusted.hsl().l > 0.4:
+                    adjusted = adjusted.set_light(0.4, at_most=True)
+            else:
+                # Lighten by overlaying with white
+                white = RGB(255, 255, 255)
+                adjusted = color.overlay(white, 0.3)
+                # Ensure we meet the threshold
+                if adjusted.hsl().l < 0.65:
+                    adjusted = adjusted.set_light(0.65, at_least=True)
+        else:
+            logger.warning(f"Unknown adjustment method '{method}', using hsl")
+            return adjust_color_for_background(hex_color, bg_color, "hsl")
+        
+        # Convert back to hex
+        adjusted_hex = f"#{adjusted.r:02x}{adjusted.g:02x}{adjusted.b:02x}"
+        logger.debug(f"Adjusted {hex_color} -> {adjusted_hex} for {'light' if is_light_bg else 'dark'} background")
+        return adjusted_hex
+        
+    except Exception as e:
+        logger.warning(f"Error adjusting color {hex_color}: {e}, returning original")
+        return hex_color
+
+
 @dataclass
 class ColorPalette:
     """Color definitions for a theme variant.
@@ -31,6 +94,68 @@ class ColorPalette:
     warning: str
     dim: str
     text: str
+    
+    def to_rgb_palette(self) -> dict[str, 'RGB']:
+        """Convert hex colors to RGB objects.
+        
+        Returns:
+            Dictionary mapping field names to RGB objects
+        """
+        from src.color_util import RGB
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            return {
+                'primary': RGB.from_hex(self.primary),
+                'highlight': RGB.from_hex(self.highlight),
+                'success': RGB.from_hex(self.success),
+                'error': RGB.from_hex(self.error),
+                'warning': RGB.from_hex(self.warning),
+                'dim': RGB.from_hex(self.dim),
+                'text': RGB.from_hex(self.text),
+            }
+        except Exception as e:
+            logger.error(f"Error converting palette to RGB: {e}")
+            raise
+    
+    def adjust_for_background(self, bg_color: 'RGB', method: str = "hsl") -> 'ColorPalette':
+        """Adjust palette colors for readability on given background.
+        
+        Ensures all text colors meet minimum lightness requirements:
+        - Dark backgrounds: lightness >= 0.65
+        - Light backgrounds: lightness <= 0.4
+        
+        Args:
+            bg_color: RGB background color
+            method: Adjustment method - "hsl" or "overlay"
+            
+        Returns:
+            New ColorPalette with adjusted colors
+        """
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Adjust each color in the palette
+            adjusted = ColorPalette(
+                primary=adjust_color_for_background(self.primary, bg_color, method),
+                highlight=adjust_color_for_background(self.highlight, bg_color, method),
+                success=adjust_color_for_background(self.success, bg_color, method),
+                error=adjust_color_for_background(self.error, bg_color, method),
+                warning=adjust_color_for_background(self.warning, bg_color, method),
+                dim=adjust_color_for_background(self.dim, bg_color, method),
+                text=adjust_color_for_background(self.text, bg_color, method),
+            )
+            
+            logger.debug(f"Adjusted palette for {'light' if bg_color.is_light() else 'dark'} background")
+            return adjusted
+            
+        except Exception as e:
+            logger.warning(f"Error adjusting palette: {e}, returning original")
+            return self
 
 
 class Theme:
@@ -113,6 +238,151 @@ class Theme:
             Rich Text object with description styling applied
         """
         return Text(text, style=Style(color=self.palette.dim))
+    
+    def get_color_mode(self) -> str:
+        """Get appropriate color mode for terminal.
+        
+        Detects terminal capabilities and returns the best supported
+        color mode: "rgb" for 24-bit color, "8bit" for 256-color,
+        or "ansi" for basic 16-color terminals.
+        
+        Returns:
+            Color mode string: "rgb", "8bit", or "ansi"
+        """
+        from src.terminal_detect import detect_ansi_mode
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            mode = detect_ansi_mode()
+            if mode is None:
+                logger.debug("Terminal detection returned None, defaulting to 8bit")
+                return "8bit"
+            logger.debug(f"Detected terminal color mode: {mode}")
+            return mode
+        except Exception as e:
+            logger.warning(f"Error detecting color mode: {e}, defaulting to 8bit")
+            return "8bit"
+    
+    def adapt_to_terminal(self, bg_color: 'RGB | None' = None) -> 'Theme':
+        """Create terminal-adapted theme variant.
+        
+        Adapts the theme's color palette based on the terminal's background
+        color to ensure text remains readable. If no background color is
+        provided, attempts to detect it automatically.
+        
+        Args:
+            bg_color: Optional RGB background color. If None, attempts detection.
+            
+        Returns:
+            New Theme instance with adapted color palette
+        """
+        from src.terminal_detect import get_background_color
+        from src.color_util import RGB
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Detect background color if not provided
+            if bg_color is None:
+                bg_color = get_background_color()
+                if bg_color is None:
+                    logger.debug("Could not detect background color, returning original theme")
+                    return self
+            
+            # Classify background as light or dark
+            is_light_bg = bg_color.is_light()
+            light_dark = "light" if is_light_bg else "dark"
+            
+            logger.debug(f"Background classified as {light_dark} (lightness={bg_color.hsl().l:.2f})")
+            
+            # Adapt palette for background
+            adapted_palette = self.palette.adjust_for_background(bg_color)
+            
+            # Create new theme with adapted palette
+            adapted_theme = Theme(f"{self.name}_adapted", adapted_palette)
+            logger.debug(f"Created adapted theme: {adapted_theme.name}")
+            
+            return adapted_theme
+            
+        except Exception as e:
+            logger.warning(f"Error adapting theme to terminal: {e}, returning original theme")
+            return self
+
+    def get_color_mode(self) -> str:
+        """Get appropriate color mode for terminal.
+
+        Detects terminal capabilities and returns the best supported
+        color mode: "rgb" for 24-bit color, "8bit" for 256-color,
+        or "ansi" for basic 16-color terminals.
+
+        Returns:
+            Color mode string: "rgb", "8bit", or "ansi"
+        """
+        from src.terminal_detect import detect_ansi_mode
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            mode = detect_ansi_mode()
+            if mode is None:
+                logger.debug("Terminal detection returned None, defaulting to 8bit")
+                return "8bit"
+            logger.debug(f"Detected terminal color mode: {mode}")
+            return mode
+        except Exception as e:
+            logger.warning(f"Error detecting color mode: {e}, defaulting to 8bit")
+            return "8bit"
+
+    def adapt_to_terminal(self, bg_color: 'RGB | None' = None) -> 'Theme':
+        """Create terminal-adapted theme variant.
+
+        Adapts the theme's color palette based on the terminal's background
+        color to ensure text remains readable. If no background color is
+        provided, attempts to detect it automatically.
+
+        Args:
+            bg_color: Optional RGB background color. If None, attempts detection.
+
+        Returns:
+            New Theme instance with adapted color palette
+        """
+        from src.terminal_detect import get_background_color
+        from src.color_util import RGB
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Detect background color if not provided
+            if bg_color is None:
+                bg_color = get_background_color()
+                if bg_color is None:
+                    logger.debug("Could not detect background color, returning original theme")
+                    return self
+
+            # Classify background as light or dark
+            is_light_bg = bg_color.is_light()
+            light_dark = "light" if is_light_bg else "dark"
+
+            logger.debug(f"Background classified as {light_dark} (lightness={bg_color.hsl().l:.2f})")
+
+            # Adapt palette for background
+            adapted_palette = self.palette.adjust_for_background(bg_color)
+
+            # Create new theme with adapted palette
+            adapted_theme = Theme(f"{self.name}_adapted", adapted_palette)
+            logger.debug(f"Created adapted theme: {adapted_theme.name}")
+
+            return adapted_theme
+
+        except Exception as e:
+            logger.warning(f"Error adapting theme to terminal: {e}, returning original theme")
+            return self
+
 
 
 
