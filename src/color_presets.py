@@ -116,7 +116,13 @@ class ColorPreset:
                     white = RGB(r=255, g=255, b=255)
                     if color.hsl().l < target_lightness:
                         # Calculate alpha needed to reach target lightness
-                        alpha = min(0.5, (target_lightness - color.hsl().l) / 0.5)
+                        # For very dark colors, we need higher alpha values
+                        # Linear approximation: alpha ≈ (target - current) / (1.0 - current)
+                        current_l = color.hsl().l
+                        if current_l < 0.99:  # Avoid division by zero
+                            alpha = min(1.0, (target_lightness - current_l) / (1.0 - current_l))
+                        else:
+                            alpha = 0.0
                         adjusted.append(color.overlay(white, alpha))
                     else:
                         adjusted.append(color)
@@ -132,7 +138,12 @@ class ColorPreset:
                     black = RGB(r=0, g=0, b=0)
                     if color.hsl().l > target_lightness:
                         # Calculate alpha needed to reach target lightness
-                        alpha = min(0.5, (color.hsl().l - target_lightness) / 0.5)
+                        # Linear approximation: alpha ≈ (current - target) / current
+                        current_l = color.hsl().l
+                        if current_l > 0.01:  # Avoid division by zero
+                            alpha = min(1.0, (current_l - target_lightness) / current_l)
+                        else:
+                            alpha = 0.0
                         adjusted.append(color.overlay(black, alpha))
                     else:
                         adjusted.append(color)

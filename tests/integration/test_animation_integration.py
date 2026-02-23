@@ -277,6 +277,122 @@ class TestAnimationColorIntegration:
                 # Verify detection returns a valid mode (may not match expected exactly)
                 assert detected_mode in ["rgb", "8bit", "ansi", None], \
                     f"Should return valid mode, got: {detected_mode}"
+    
+    def test_fire_palette_8bit_codes_valid(self):
+        """Test that 8-bit fire palette contains valid ANSI color codes.
+        
+        Validates Requirement 14.1: 8-bit fallback palette integrity
+        """
+        # Verify all 8-bit colors are valid color() format
+        for i, color_code in enumerate(FirePalette.COLORS_8BIT):
+            # Should be in format "color(N)" where N is 0-255
+            assert color_code.startswith("color("), \
+                f"8-bit color {i} should start with 'color(': {color_code}"
+            assert color_code.endswith(")"), \
+                f"8-bit color {i} should end with ')': {color_code}"
+            
+            # Extract and validate color code number
+            try:
+                code_num = int(color_code[6:-1])
+                assert 0 <= code_num <= 255, \
+                    f"8-bit color code {i} out of range: {code_num}"
+            except ValueError as e:
+                pytest.fail(f"Invalid 8-bit color code at index {i}: {color_code}, error: {e}")
+    
+    def test_fire_palette_8bit_progression(self):
+        """Test that 8-bit fire palette progresses from dark to bright codes.
+        
+        Validates Requirement 14.1: 8-bit palette design
+        """
+        # Extract numeric codes from 8-bit palette
+        codes = []
+        for color_code in FirePalette.COLORS_8BIT:
+            code_num = int(color_code[6:-1])
+            codes.append(code_num)
+        
+        # Verify general upward trend in color codes
+        # First code should be lower than last code
+        assert codes[0] < codes[-1], \
+            "8-bit fire palette should progress from dark to bright codes"
+        
+        # Middle codes should be between first and last
+        mid_code = codes[len(codes) // 2]
+        assert codes[0] < mid_code < codes[-1], \
+            "8-bit fire palette should have gradual progression"
+    
+    def test_animation_color_mode_auto_detection(self, simple_banner, mock_console):
+        """Test that FireAnimator auto-detects color mode when use_rgb=None.
+        
+        Validates Requirement 14.1: Automatic color mode detection
+        """
+        # Test with RGB support available
+        with patch('src.animation.TerminalCapabilities.supports_rgb', return_value=True):
+            animator_auto = FireAnimator(intensity="normal", use_rgb=None)
+            assert animator_auto._use_rgb is True, \
+                "Should auto-detect RGB support when available"
+        
+        # Test without RGB support
+        with patch('src.animation.TerminalCapabilities.supports_rgb', return_value=False):
+            animator_auto = FireAnimator(intensity="normal", use_rgb=None)
+            assert animator_auto._use_rgb is False, \
+                "Should auto-detect lack of RGB support and use 8-bit fallback"
+    
+    def test_animation_color_mode_fallback_when_detection_unavailable(self, simple_banner, mock_console):
+        """Test that FireAnimator defaults to RGB when TerminalCapabilities unavailable.
+        
+        Validates Requirement 14.1: Graceful fallback when detection fails
+        """
+        # Simulate TerminalCapabilities not being available
+        with patch('src.animation._HAS_TERMINAL_CAPABILITIES', False):
+            animator = FireAnimator(intensity="normal", use_rgb=None)
+            
+            # Should default to RGB mode when detection unavailable
+            assert animator._use_rgb is True, \
+                "Should default to RGB when terminal detection unavailable"
+            assert animator._palette == FirePalette.STYLES, \
+                "Should use RGB palette as default"
+    
+    def test_fire_palette_styles_match_colors_length(self):
+        """Test that RGB and 8-bit palettes have matching lengths.
+        
+        Validates Requirement 14.1: Palette consistency
+        """
+        assert len(FirePalette.COLORS) == len(FirePalette.COLORS_8BIT), \
+            "RGB and 8-bit palettes should have same number of colors"
+        assert len(FirePalette.STYLES) == len(FirePalette.STYLES_8BIT), \
+            "RGB and 8-bit style palettes should have same number of entries"
+        assert len(FirePalette.COLORS) == 12, \
+            "Fire palette should have exactly 12 color steps"
+    
+    def test_animation_uses_correct_palette_for_coloring(self, simple_banner, mock_console):
+        """Test that animation uses the correct palette based on color mode.
+        
+        Validates Requirement 14.1: Palette selection consistency
+        """
+        import random
+        
+        # Test RGB mode
+        animator_rgb = FireAnimator(intensity="normal", use_rgb=True)
+        rng = random.Random(42)
+        flame_lines, text_lines = animator_rgb._detect_zones(simple_banner)
+        frame_rgb = animator_rgb._build_frame(simple_banner, flame_lines, text_lines, rng)
+        
+        # Verify frame was built successfully (no exceptions)
+        assert frame_rgb is not None
+        assert len(frame_rgb.plain.split('\n')) == len(simple_banner.lines)
+        
+        # Test 8-bit mode
+        animator_8bit = FireAnimator(intensity="normal", use_rgb=False)
+        rng = random.Random(42)  # Same seed for consistency
+        frame_8bit = animator_8bit._build_frame(simple_banner, flame_lines, text_lines, rng)
+        
+        # Verify frame was built successfully
+        assert frame_8bit is not None
+        assert len(frame_8bit.plain.split('\n')) == len(simple_banner.lines)
+        
+        # Both should preserve the same text content
+        assert frame_rgb.plain == frame_8bit.plain, \
+            "RGB and 8-bit modes should preserve identical text content"
 
 
 if __name__ == "__main__":

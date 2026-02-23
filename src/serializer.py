@@ -55,7 +55,12 @@ def to_dict(obj: Any) -> dict | list | Any:
     
     # Handle enums - convert to string representation
     if isinstance(obj, Enum):
-        return obj.value if hasattr(obj, 'value') else obj.name
+        # For enums with string values, use .value
+        # For enums with non-string values (e.g., auto()), use .name
+        if hasattr(obj, 'value') and isinstance(obj.value, str):
+            return obj.value
+        else:
+            return obj.name
     
     # Handle Path objects - convert to string
     if isinstance(obj, Path):

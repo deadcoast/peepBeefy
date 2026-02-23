@@ -212,7 +212,12 @@ class ConfigManager:
                 return config
             
             # Validate and convert nested dictionaries to dataclass instances
-            if 'banner' in data and isinstance(data['banner'], dict):
+            if 'banner' in data:
+                if not isinstance(data['banner'], dict):
+                    logger.error(f"Invalid banner type: expected dict, got {type(data['banner']).__name__}")
+                    self._backup_corrupted()
+                    return AppConfig()
+                
                 banner_data = data['banner']
                 
                 # Validate animation_duration range (0.5-10.0)
@@ -238,7 +243,12 @@ class ConfigManager:
                 data['banner'] = BannerConfig(**banner_data)
             
             # Validate and convert display config
-            if 'display' in data and isinstance(data['display'], dict):
+            if 'display' in data:
+                if not isinstance(data['display'], dict):
+                    logger.error(f"Invalid display type: expected dict, got {type(data['display']).__name__}")
+                    self._backup_corrupted()
+                    return AppConfig()
+                
                 display_data = data['display']
                 
                 # Validate lightness_adjustment range (0.0-1.0)

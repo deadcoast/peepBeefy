@@ -180,6 +180,62 @@ ccccccccccccccccc.      .cccccccc.
         assert banner.metadata.name == "Debian"
 
 
+    def test_case_variations_comprehensive(self, banner_db):
+        """Test comprehensive case variations for distro names."""
+        # Test all case variations for Ubuntu
+        test_cases = [
+            "ubuntu",      # lowercase
+            "Ubuntu",      # title case
+            "UBUNTU",      # uppercase
+            "uBuNtU",      # mixed case
+            "UbUnTu",      # another mixed case
+        ]
+        
+        for test_case in test_cases:
+            banner = banner_db.get_banner_by_distro(test_case)
+            assert banner.metadata.name == "Ubuntu", f"Failed for case: {test_case}"
+    
+    def test_multiple_alias_mappings(self, banner_db):
+        """Test multiple alias mappings for the same distro."""
+        # Test CoreOS aliases
+        coreos_aliases = ["coreos", "container linux"]
+        for alias in coreos_aliases:
+            banner = banner_db.get_banner_by_distro(alias)
+            assert banner.metadata.name == "container_linux", f"Failed for alias: {alias}"
+        
+        # Test Red Hat aliases
+        redhat_aliases = ["rhel", "red hat"]
+        for alias in redhat_aliases:
+            banner = banner_db.get_banner_by_distro(alias)
+            assert banner.metadata.name == "RedHat", f"Failed for alias: {alias}"
+    
+    def test_partial_matching_edge_cases(self, banner_db):
+        """Test partial matching with various edge cases."""
+        # Single character should still attempt matching
+        banner = banner_db.get_banner_by_distro("u")
+        # Should match Ubuntu or return fallback
+        assert banner is not None
+        
+        # Partial word from middle of name
+        banner = banner_db.get_banner_by_distro("bunt")
+        # Should match Ubuntu via partial word matching
+        assert banner.metadata.name == "Ubuntu"
+    
+    def test_fallback_with_special_characters(self, banner_db):
+        """Test fallback behavior with special characters."""
+        special_cases = [
+            "distro@123",
+            "distro#name",
+            "distro$special",
+            "123numeric",
+        ]
+        
+        for test_case in special_cases:
+            banner = banner_db.get_banner_by_distro(test_case)
+            # Should return fallback for unrecognized names
+            assert banner.metadata.category == "FALLBACK"
+
+
 class TestDistroAliases:
     """Test the DISTRO_ALIASES mapping."""
     
@@ -205,3 +261,24 @@ class TestDistroAliases:
         aliases = BannerDatabase.DISTRO_ALIASES
         for key in aliases.keys():
             assert key == key.lower(), f"Alias key '{key}' should be lowercase"
+    
+    def test_alias_case_insensitivity(self):
+        """Test that aliases work with case variations."""
+        # Note: The implementation normalizes input to lowercase,
+        # so aliases should be defined in lowercase
+        aliases = BannerDatabase.DISTRO_ALIASES
+        
+        # Verify common aliases are present
+        assert 'coreos' in aliases
+        assert 'container linux' in aliases
+        assert 'rhel' in aliases
+        assert 'red hat' in aliases
+    
+    def test_all_aliases_have_valid_targets(self):
+        """Test that all alias targets are non-empty strings."""
+        aliases = BannerDatabase.DISTRO_ALIASES
+        
+        for key, value in aliases.items():
+            assert isinstance(value, str), f"Alias '{key}' has non-string target"
+            assert len(value) > 0, f"Alias '{key}' has empty target"
+            assert value == value.lower(), f"Alias target '{value}' should be lowercase"

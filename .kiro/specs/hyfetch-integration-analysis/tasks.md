@@ -31,7 +31,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement redistribute_rgb() for component overflow handling
     - _Requirements: 1.3, 1.4, 1.7_
   
-  - [-] 1.4 Write property tests for lightness operations
+  - [x] 1.4 Write property tests for lightness operations
     - **Property 2: Lightness Adjustment Preserves Hue and Saturation**
     - **Property 3: RGB Redistribution Maintains Proportions**
     - **Property 5: Lightness Classification Threshold**
@@ -41,7 +41,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement RGB.overlay() with alpha blending
     - _Requirements: 1.5_
   
-  - [ ] 1.6 Write property test for color overlay
+  - [x] 1.6 Write property test for color overlay
     - **Property 4: Color Overlay Produces Valid RGB**
     - **Validates: Requirements 1.5**
 
@@ -51,7 +51,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Support both foreground (38;2) and background (48;2) modes
     - _Requirements: 2.1, 2.6_
   
-  - [ ]* 2.2 Write property test for RGB ANSI format
+  - [x] 2.2 Write property test for RGB ANSI format
     - **Property 6: RGB ANSI Format Correctness**
     - **Validates: Requirements 2.1, 2.6**
   
@@ -61,7 +61,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement grayscale mapping for low-saturation colors (232-255)
     - _Requirements: 2.2, 2.3, 2.4, 2.5_
   
-  - [ ]* 2.4 Write property tests for 8-bit ANSI conversion
+  - [x] 2.4 Write property tests for 8-bit ANSI conversion
     - **Property 7: 8-bit ANSI Code Range Validity**
     - **Property 8: Color Cube Formula Correctness**
     - **Validates: Requirements 2.2, 2.3, 2.4, 2.5**
@@ -71,7 +71,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement RGB.to_ansi() accepting mode parameter
     - _Requirements: 2.7_
   
-  - [ ]* 2.6 Write property test for unified ANSI interface
+  - [x] 2.6 Write property test for unified ANSI interface
     - **Property 9: Unified ANSI Interface Consistency**
     - **Validates: Requirements 2.7**
 
@@ -94,11 +94,11 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Return None on detection failure (graceful fallback)
     - _Requirements: 3.6_
   
-  - [ ]* 3.4 Write property test for graceful failure
+  - [x] 3.4 Write property test for graceful failure
     - **Property 10: Terminal Detection Graceful Failure**
     - **Validates: Requirements 3.6**
   
-  - [ ]* 3.5 Write unit tests for terminal detection examples
+  - [x] 3.5 Write unit tests for terminal detection examples
     - Test COLORTERM="truecolor" → rgb
     - Test TERM="xterm-256color" → 8bit
     - Test TERM="linux" → ansi
@@ -119,7 +119,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Automatically append ANSI reset code at end
     - _Requirements: 9.7_
   
-  - [ ]* 4.3 Write property tests for color code parsing
+  - [x] 4.3 Write property tests for color code parsing
     - **Property 30: Minecraft Color Code Replacement**
     - **Property 31: RGB Color Code Parsing**
     - **Property 32: Automatic Reset Code Appending**
@@ -137,7 +137,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Generate (N-1) * resolution interpolated colors
     - _Requirements: 4.1, 4.2, 4.3_
   
-  - [ ]* 6.2 Write property tests for gradient generation
+  - [x] 6.2 Write property tests for gradient generation
     - **Property 11: Gradient Length Matches Resolution**
     - **Property 12: Linear Interpolation Correctness**
     - **Property 45: Gradient Smoothness**
@@ -150,7 +150,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement get_raw() helper for array indexing
     - _Requirements: 4.4, 4.5_
   
-  - [ ]* 6.4 Write property tests for gradient lookup
+  - [x] 6.4 Write property tests for gradient lookup
     - **Property 13: Gradient Ratio Lookup Bounds**
     - **Validates: Requirements 4.4, 4.5**
   
@@ -158,7 +158,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Create create_gradient_hex() function
     - _Requirements: 4.6_
   
-  - [ ]* 6.6 Write property test for hex initialization
+  - [x] 6.6 Write property test for hex initialization
     - **Property 14: Gradient Hex Initialization**
     - **Validates: Requirements 4.6**
 
@@ -170,7 +170,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement adjust_lightness() for background adaptation
     - _Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
   
-  - [ ]* 7.2 Write property tests for preset operations
+  - [x] 7.2 Write property tests for preset operations
     - **Property 15: Weighted Preset Expansion**
     - **Property 16: Color Spreading Exact Length**
     - **Property 17: Center-Outward Distribution Balance**
@@ -183,7 +183,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement overlay-based lightness adjustment
     - _Requirements: 5.1, 5.8_
   
-  - [ ]* 7.4 Write property test for overlay operations
+  - [x] 7.4 Write property test for overlay operations
     - **Property 19: Overlay Produces Valid Colors**
     - **Validates: Requirements 5.8**
   
@@ -214,7 +214,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement json_stringify() with pretty-printing
     - _Requirements: 6.5_
   
-  - [ ]* 9.4 Write property tests for serialization
+  - [x] 9.4 Write property tests for serialization
     - **Property 20: Dataclass Serialization Round-Trip**
     - **Property 21: Enum Serialization to String**
     - **Property 22: JSON Output Validity**
@@ -236,12 +236,12 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Provide defaults for new fields when loading old configs
     - _Requirements: 7.6_
   
-  - [ ]* 10.3 Write property tests for configuration
+  - [x] 10.3 Write property tests for configuration
     - **Property 24: Configuration Type Validation**
     - **Property 42: Backward Compatible Config Loading**
     - **Validates: Requirements 7.7, 14.5**
   
-  - [ ]* 10.4 Write unit tests for migration
+  - [x] 10.4 Write unit tests for migration
     - Test v1 config loads with defaults
     - Test v2 config loads correctly
     - Test corrupted config handling
@@ -264,11 +264,11 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement strip_neofetch_codes() helper
     - _Requirements: 8.6, 8.7_
   
-  - [ ]* 12.3 Write property test for structure preservation
+  - [x] 12.3 Write property test for structure preservation
     - **Property 29: ASCII Structure Preservation**
     - **Validates: Requirements 8.7**
   
-  - [ ]* 12.4 Write property test for neofetch code removal
+  - [x] 12.4 Write property test for neofetch code removal
     - **Property 28: Neofetch Code Removal**
     - **Validates: Requirements 8.6**
   
@@ -277,7 +277,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Cycle through colors if fewer colors than lines
     - _Requirements: 8.1, 8.4_
   
-  - [ ]* 12.4 Write property test for horizontal alignment
+  - [x] 12.4 Write property test for horizontal alignment
     - **Property 25: Horizontal Alignment One Color Per Line**
     - **Validates: Requirements 8.1, 8.4**
   
@@ -286,7 +286,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Create horizontal gradient effect
     - _Requirements: 8.2, 8.5_
   
-  - [ ]* 12.6 Write property test for vertical alignment
+  - [x] 12.6 Write property test for vertical alignment
     - **Property 26: Vertical Alignment Gradient Across Width**
     - **Validates: Requirements 8.2, 8.5**
   
@@ -295,7 +295,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Map ASCII color codes to preset colors
     - _Requirements: 8.3_
   
-  - [ ]* 12.8 Write property test for custom alignment
+  - [x] 12.8 Write property test for custom alignment
     - **Property 27: Custom Alignment Mapping**
     - **Validates: Requirements 8.3**
 
@@ -306,7 +306,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Add color_zones field for named color regions
     - _Requirements: 11.5_
   
-  - [ ]* 13.2 Write integration test for banner colorization
+  - [x] 13.2 Write integration test for banner colorization
     - Test ASCIIColorizer preserves banner structure
     - Test all three alignment modes with real banners
     - _Requirements: 8.1, 8.2, 8.3, 14.6_
@@ -335,7 +335,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - **Property 33: OSC Response Parsing**
     - **Validates: Requirements 10.4**
   
-  - [ ]* 15.4 Write unit tests for OSC detection
+  - [x] 15.4 Write unit tests for OSC detection
     - Test timeout handling
     - Test screen/tmux skip logic
     - Test terminal mode restoration
@@ -349,13 +349,13 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement fallback banner for unrecognized distros
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.7_
   
-  - [ ]* 16.2 Write property tests for distro matching
+  - [x] 16.2 Write property tests for distro matching
     - **Property 34: Distro Name Case Insensitivity**
     - **Property 35: Distro Partial Matching**
     - **Property 36: Distro Fallback Banner**
     - **Validates: Requirements 11.2, 11.4, 11.7**
   
-  - [ ]* 16.3 Write unit tests for distro detection
+  - [x] 16.3 Write unit tests for distro detection
     - Test case variations (Ubuntu, ubuntu, UBUNTU)
     - Test alias mapping (coreos → container_linux)
     - Test partial matching
@@ -369,7 +369,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement background lightness classification
     - _Requirements: 12.1_
   
-  - [ ]* 17.2 Write property test for background classification
+  - [x] 17.2 Write property test for background classification
     - **Property 37: Background Lightness Classification**
     - **Validates: Requirements 12.1**
   
@@ -380,7 +380,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Preserve hue and saturation during adjustment
     - _Requirements: 12.2, 12.3, 12.4, 12.6, 12.7_
   
-  - [ ]* 17.4 Write property test for overlay adjustment
+  - [x] 17.4 Write property test for overlay adjustment
     - **Property 38: Overlay Lightness Adjustment Validity**
     - **Validates: Requirements 12.4**
   
@@ -408,13 +408,13 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Invalidate stale cache automatically
     - _Requirements: 13.4, 13.5_
   
-  - [ ]* 18.4 Write property tests for caching
+  - [x] 18.4 Write property tests for caching
     - **Property 39: Cache Reuse on Repeated Access**
     - **Property 40: Cache Freshness Validation**
     - **Property 41: Cache Failure Graceful Handling**
     - **Validates: Requirements 13.2, 13.3, 13.4, 13.5, 13.6**
   
-  - [ ]* 18.5 Write unit tests for cache operations
+  - [x] 18.5 Write unit tests for cache operations
     - Test cache hit/miss scenarios
     - Test stale cache invalidation
     - Test cache directory creation failure
@@ -426,38 +426,38 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
 ### Phase 6: Integration Testing and Performance
 
 - [x] 20. Write integration tests
-  - [ ]* 20.1 Test color system with animation engine
+  - [x] 20.1 Test color system with animation engine
     - Verify FireAnimator uses RGB or 8-bit based on terminal capability
     - Test fire palette fallback behavior
     - _Requirements: 14.1_
   
-  - [ ]* 20.2 Test terminal detection with theme system
+  - [x] 20.2 Test terminal detection with theme system
     - Verify themes adapt colors based on terminal background
     - Test lightness adjustment for dark/light backgrounds
     - _Requirements: 14.2_
   
-  - [ ]* 20.3 Test gradient engine smoothness
+  - [x] 20.3 Test gradient engine smoothness
     - Verify smooth color transitions in generated gradients
     - Test gradient lookup at various ratios
     - _Requirements: 14.3_
   
-  - [ ]* 20.4 Test preset system loading and application
+  - [x] 20.4 Test preset system loading and application
     - Verify presets load from JSON correctly
     - Test color spreading across different lengths
     - _Requirements: 14.4_
   
-  - [ ]* 20.5 Test ASCII renderer with banner system
+  - [x] 20.5 Test ASCII renderer with banner system
     - Verify colorization preserves banner structure
     - Test all alignment modes with real banners
     - _Requirements: 14.6_
   
-  - [ ]* 20.6 Test graceful degradation
+  - [x] 20.6 Test graceful degradation
     - Verify all features work on limited terminals
     - Test RGB → 8-bit → ANSI fallback chain
     - _Requirements: 14.7_
 
 - [x] 21. Performance testing and optimization
-  - [ ]* 21.1 Write startup performance test
+  - [x] 21.1 Write startup performance test
     - Measure total startup time with all enhancements
     - Verify <200ms target is met
     - Profile individual component load times
@@ -469,7 +469,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Pre-compute gradients efficiently
     - _Requirements: 13.7_
   
-  - [ ]* 21.3 Write memory usage tests
+  - [x] 21.3 Write memory usage tests
     - Measure memory footprint of gradients
     - Measure banner cache size
     - Verify total additional memory is acceptable
