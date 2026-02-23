@@ -58,6 +58,10 @@ class TestLightnessAdjustmentPreservesHueAndSaturation:
         # Skip very dark/light colors where precision is poor
         assume(original_hsl.l > 0.05 and original_hsl.l < 0.95)
         
+        # Skip target lightness at extremes (0.0 = black, 1.0 = white)
+        # where hue and saturation become mathematically undefined
+        assume(target_light > 0.05 and target_light < 0.95)
+        
         # Adjust lightness
         adjusted_rgb = rgb.set_light(target_light)
         adjusted_hsl = adjusted_rgb.hsl()
@@ -294,11 +298,11 @@ class TestLightnessClassificationThreshold:
     def test_is_light_known_light_colors(self):
         """is_light() should return True for known light colors."""
         light_colors = [
-            RGB(255, 255, 255),  # White
-            RGB(255, 255, 0),    # Yellow
-            RGB(0, 255, 255),    # Cyan
-            RGB(255, 0, 255),    # Magenta
-            RGB(200, 200, 200),  # Light gray
+            RGB(255, 255, 255),  # White (L=1.0)
+            RGB(255, 255, 128),  # Light yellow (L>0.5)
+            RGB(128, 255, 255),  # Light cyan (L>0.5)
+            RGB(255, 128, 255),  # Light magenta (L>0.5)
+            RGB(200, 200, 200),  # Light gray (L>0.5)
         ]
         
         for color in light_colors:

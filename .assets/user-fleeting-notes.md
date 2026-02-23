@@ -32,3 +32,21 @@
     - [A.4.2]: ASCII-Unformatted-Databases: `.assets\ASCII-Collapsed-Logo.txt`, `.assets\ASCII-Full-Logo.txt`,
 - [B]: Initiate and utilize serena plugin to keep you on track always
 - [C]: When you have a good understanding of [A] + [B]: beginning planning comprehensive rewrites / integrations for peepBeefy improvements, quality of lfie, retro visual aesthetic delivery and design.
+
+---
+
+## hyfetch review
+
+```
+# ANALYSIS AND CROSS REVIEW
+
+- `hyfetch` has recently rewrote their code to rust and open source all the source code python.
+
+1. I have included the [python-directory](.assets\training_resources\hyfetch\hyfetch) to analyze and cross compare against the peepBeefy source code.
+2. A) We are aiming to further utilize the visual aesthetics. `hyfetch` is a neofetch fork, it is more modern, so i chose to utilize their python source code instead. They have great modulated logic that can be directly utilized to upgrade the more rudimentary methods in peepBeefy.
+2. B) Ensure you have context and knowledge on the peepBeefy visual aesthetics and retro / ascii look.
+3. This spec has a comprehensive analysis and cross review requirement. It is not a suggestion.
+4. Utilize tools, agents, multi agents, collaberations, mcp that you have access to.
+5. A) When you have comprehensive knowledge on the differences;
+5. B) Begin the spec Build utilizing the data you gained in:[1],[2]
+```
