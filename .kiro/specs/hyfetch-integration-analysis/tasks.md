@@ -19,7 +19,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement HSL.rgb() conversion using colorsys
     - _Requirements: 1.1, 1.2, 1.6_
   
-  - [ ]* 1.2 Write property test for RGB-HSL round-trip conversion
+  - [x] 1.2 Write property test for RGB-HSL round-trip conversion
     - **Property 1: RGB-HSL Round-Trip Preservation**
     - **Property 44: Hex Color Format Support**
     - **Validates: Requirements 1.1, 1.2, 1.6**
@@ -31,7 +31,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement redistribute_rgb() for component overflow handling
     - _Requirements: 1.3, 1.4, 1.7_
   
-  - [ ]* 1.4 Write property tests for lightness operations
+  - [-] 1.4 Write property tests for lightness operations
     - **Property 2: Lightness Adjustment Preserves Hue and Saturation**
     - **Property 3: RGB Redistribution Maintains Proportions**
     - **Property 5: Lightness Classification Threshold**
@@ -41,7 +41,7 @@ The implementation maintains peepBeefy's retro CRT aesthetic while adding modern
     - Implement RGB.overlay() with alpha blending
     - _Requirements: 1.5_
   
-  - [ ]* 1.6 Write property test for color overlay
+  - [ ] 1.6 Write property test for color overlay
     - **Property 4: Color Overlay Produces Valid RGB**
     - **Validates: Requirements 1.5**
 
