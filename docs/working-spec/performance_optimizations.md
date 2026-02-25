@@ -24,6 +24,7 @@ The hyfetch integration adds sophisticated color handling, terminal detection, a
 - Returns cached presets on subsequent calls
 
 **Usage**:
+
 ```python
 from src.color_presets import get_presets_lazy
 
@@ -48,6 +49,7 @@ presets = get_presets_lazy()
 - Automatically cache new gradients
 
 **Usage**:
+
 ```python
 from src.color_scale import create_gradient, clear_gradient_cache, get_gradient_cache_stats
 
@@ -66,7 +68,7 @@ print(f"Memory usage: {stats['memory_mb']:.2f} MB")
 clear_gradient_cache()
 ```
 
-**Performance Impact**: 
+**Performance Impact**:
 - Saves 5-15ms per duplicate gradient creation
 - Memory overhead: ~24 bytes per RGB color in gradient
 - Typical memory usage: <1MB for common use cases
@@ -83,6 +85,7 @@ clear_gradient_cache()
 - Skip repeated filesystem checks
 
 **Implementation**:
+
 ```python
 class ConfigManager:
     _cache_dir_checked: bool = False
@@ -133,6 +136,7 @@ class ConfigManager:
 ### For Application Code
 
 1. **Use lazy loading functions**:
+
    ```python
    # Good: Lazy loading
    presets = get_presets_lazy()
@@ -142,6 +146,7 @@ class ConfigManager:
    ```
 
 2. **Reuse Scale objects**:
+
    ```python
    # Good: Create once, reuse
    fire_scale = Scale(["#FF0000", "#FFD700"], resolution=300)
@@ -155,6 +160,7 @@ class ConfigManager:
    ```
 
 3. **Use caching for expensive operations**:
+
    ```python
    # Good: Cache terminal detection results
    config_manager.write_cache("terminal_info", terminal_data)
@@ -166,6 +172,7 @@ class ConfigManager:
 ### For Testing
 
 1. **Clear caches between tests**:
+
    ```python
    from src.color_presets import clear_preset_cache
    from src.color_scale import clear_gradient_cache
@@ -176,6 +183,7 @@ class ConfigManager:
    ```
 
 2. **Use cache statistics for debugging**:
+
    ```python
    from src.color_scale import get_gradient_cache_stats
    

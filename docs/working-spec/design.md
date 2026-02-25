@@ -46,7 +46,7 @@ graph TB
 
 The enhancement introduces four new modules within the existing `src/` directory:
 
-```
+```plaintext
 src/
 ├── main.py                    # Existing CLI entry point
 ├── banner.py                  # NEW: Banner System
@@ -58,6 +58,7 @@ src/
 ### Component Responsibilities
 
 #### Banner System (`banner.py`)
+
 - Parse ASCII art database files
 - Select banners (random, fixed, category-filtered)
 - Render static banners with theme colors
@@ -65,18 +66,21 @@ src/
 - Handle terminal size validation and fallbacks
 
 #### Configuration System (`config.py`)
+
 - Load/save user preferences from JSON
 - Provide schema validation and migration
 - Detect first-run and trigger setup wizard
 - Manage default values and fallback behavior
 
 #### Fire Animation Engine (`animation.py`)
+
 - Implement DOOM PSX fire effect (extracted from install.py)
 - Support configurable duration, FPS, and intensity
 - Adapt to different ASCII art dimensions
 - Provide per-line flame zone coloring
 
 #### Theme System (`themes.py`)
+
 - Define color palettes (CRT_Cyan, Amber_Terminal, Green_Phosphor, Synthwave)
 - Apply consistent styling across UI elements
 - Maintain DOUBLE box border style
@@ -184,16 +188,18 @@ class BannerRenderer:
 
 The parser handles the existing format from `.assets/ASCII-Full-Logo.txt`:
 
-```
+```plaintext
+PLAINTEXT
 ---
 DEFINITIONS
 -----------
+
 # CATEGORY: "Description"
 
 ---
 CATEGORY:NAME
 -------------
-[ASCII art lines]
+`[ASCII art lines]`
 
 ---
 CATEGORY:NAME
@@ -201,7 +207,7 @@ CATEGORY:NAME
 [ASCII art lines]
 ```
 
-**Parsing Algorithm:**
+## **Parsing Algorithm**
 
 1. Read file line-by-line
 2. Detect section delimiters (`---`)
@@ -492,8 +498,6 @@ class TerminalCapabilities:
         """Return ANSI fallback colors for limited terminals."""
 ```
 
-
-
 ## Data Models
 
 ### ASCII Database Format
@@ -501,7 +505,8 @@ class TerminalCapabilities:
 The ASCII database uses a simple text-based format with delimiters:
 
 **File Structure:**
-```
+
+```plaintext
 ---
 DEFINITIONS
 -----------
@@ -525,7 +530,7 @@ CATEGORY:NAME
 
 **Parsing State Machine:**
 
-```
+```plaintext
 State: INITIAL
   → Read line
   → If "---": State = DELIMITER
@@ -559,7 +564,7 @@ State: CONTENT
 - Empty banners (no content lines) are rejected
 - Duplicate category:name combinations log warning, last one wins
 
-### Configuration Schema
+### JSON Configuration Schema
 
 **JSON Schema (v1):**
 
@@ -640,6 +645,7 @@ When schema version changes:
 3. Save migrated config with new version number
 
 Example migration (v1 → v2):
+
 ```python
 def migrate_v1_to_v2(data: Dict) -> Dict:
     """Migrate config from v1 to v2."""
@@ -654,7 +660,7 @@ def migrate_v1_to_v2(data: Dict) -> Dict:
 
 Future metadata fields can be added via comments in ASCII database:
 
-```
+```plaintext
 ---
 1ST_BEEFS:BIGBEEF
 -----------------
@@ -678,6 +684,7 @@ Future metadata fields can be added via comments in ASCII database:
 hyfetch provides excellent patterns for first-run configuration:
 
 **Pattern 1: First-Run Detection**
+
 ```python
 def is_first_run() -> bool:
     return not ConfigManager.CONFIG_FILE.exists()
@@ -690,6 +697,7 @@ def ensure_configured() -> AppConfig:
 ```
 
 **Pattern 2: Interactive Setup Wizard**
+
 ```python
 def run_setup_wizard() -> AppConfig:
     console.print(Panel("Welcome to peepBeefy Setup", style="bold cyan"))
@@ -719,6 +727,7 @@ def run_setup_wizard() -> AppConfig:
 ```
 
 **Pattern 3: Visual Previews**
+
 ```python
 def select_theme_interactive() -> str:
     """Show theme previews and let user select."""
@@ -744,6 +753,7 @@ def select_theme_interactive() -> str:
 hyfetch's approach to ASCII art management:
 
 **Pattern 1: Lazy Loading**
+
 ```python
 class BannerDatabase:
     def __init__(self):
@@ -756,6 +766,7 @@ class BannerDatabase:
 ```
 
 **Pattern 2: Graceful Degradation**
+
 ```python
 def get_banner_or_fallback(db: BannerDatabase, config: BannerConfig) -> Banner:
     try:
@@ -771,6 +782,7 @@ def get_banner_or_fallback(db: BannerDatabase, config: BannerConfig) -> Banner:
 ```
 
 **Pattern 3: Terminal Size Adaptation**
+
 ```python
 def render_banner_adaptive(banner: Banner, console: Console) -> None:
     term_width, term_height = console.size
@@ -1112,8 +1124,6 @@ class FireAnimator:
 
 **Trade-off**: Higher memory usage, but smoother animation and no per-frame computation overhead.
 
-
-
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
@@ -1374,8 +1384,6 @@ After analyzing all acceptance criteria, I identified several redundant properti
 
 **Validates: Requirements 5.5**
 
-
-
 ## Error Handling
 
 ### Error Categories
@@ -1392,6 +1400,7 @@ The enhancement system handles four categories of errors:
 #### 1. File System Errors
 
 **ASCII Database Missing:**
+
 ```python
 def load_banners(self) -> Dict[str, List[Banner]]:
     try:
@@ -1407,6 +1416,7 @@ def load_banners(self) -> Dict[str, List[Banner]]:
 ```
 
 **Config Directory Creation Failure:**
+
 ```python
 def save(self, config: AppConfig) -> None:
     try:
@@ -1420,6 +1430,7 @@ def save(self, config: AppConfig) -> None:
 ```
 
 **Disk Full During Save:**
+
 ```python
 def save(self, config: AppConfig) -> None:
     temp_file = self.CONFIG_FILE.with_suffix('.tmp')
@@ -1436,6 +1447,7 @@ def save(self, config: AppConfig) -> None:
 #### 2. Parse Errors
 
 **Malformed ASCII Database:**
+
 ```python
 def _parse_banner_section(self, lines: List[str], header: str) -> Optional[Banner]:
     try:
@@ -1456,6 +1468,7 @@ def _parse_banner_section(self, lines: List[str], header: str) -> Optional[Banne
 ```
 
 **Invalid JSON Config:**
+
 ```python
 def load(self) -> AppConfig:
     if not self.CONFIG_FILE.exists():
@@ -1475,6 +1488,7 @@ def load(self) -> AppConfig:
 ```
 
 **Config Schema Validation:**
+
 ```python
 def _validate_and_migrate(self, data: Dict) -> AppConfig:
     try:
@@ -1500,6 +1514,7 @@ def _validate_and_migrate(self, data: Dict) -> AppConfig:
 #### 3. Runtime Errors
 
 **Terminal Too Small:**
+
 ```python
 def render_banner(self, banner: Banner, console: Console) -> None:
     term_width, term_height = console.size
@@ -1523,6 +1538,7 @@ def render_banner(self, banner: Banner, console: Console) -> None:
 ```
 
 **Animation Failure:**
+
 ```python
 def render_animated(self, banner: Banner, console: Console, **kwargs) -> None:
     try:
@@ -1534,6 +1550,7 @@ def render_animated(self, banner: Banner, console: Console, **kwargs) -> None:
 ```
 
 **Theme Not Found:**
+
 ```python
 @classmethod
 def get_theme(cls, name: str) -> Theme:
@@ -1546,6 +1563,7 @@ def get_theme(cls, name: str) -> Theme:
 #### 4. User Input Errors
 
 **Invalid Menu Selection:**
+
 ```python
 def handle_menu_input(self, choice: str) -> None:
     try:
@@ -1559,6 +1577,7 @@ def handle_menu_input(self, choice: str) -> None:
 ```
 
 **Invalid Configuration Value:**
+
 ```python
 def set_animation_fps(self, fps: int) -> None:
     if not (4 <= fps <= 30):
@@ -1580,7 +1599,8 @@ def set_animation_fps(self, fps: int) -> None:
 - **CRITICAL**: System-level failures (should never occur in normal operation)
 
 **Log Format:**
-```
+
+```plaintext
 [2024-01-15 14:32:45] [INFO] [banner] Selected random banner: 1ST_BEEFS:BIGBEEF
 [2024-01-15 14:32:45] [DEBUG] [banner] Banner dimensions: 72x8
 [2024-01-15 14:32:45] [INFO] [theme] Applied theme: CRT_Cyan
@@ -1682,7 +1702,7 @@ def test_config_round_trip_preservation(
 
 **Test Organization:**
 
-```
+```plaintext
 tests/
 ├── unit/
 │   ├── test_banner_database.py
@@ -1814,6 +1834,7 @@ def test_animation_respects_duration():
 ### Integration Testing
 
 **First-Run Wizard Flow:**
+
 ```python
 def test_first_run_wizard_complete_flow():
     """Integration: First-run wizard creates valid config."""
@@ -1835,6 +1856,7 @@ def test_first_run_wizard_complete_flow():
 ```
 
 **Banner Display Flow:**
+
 ```python
 def test_banner_display_with_animation():
     """Integration: Banner displays with animation when enabled."""
@@ -1869,6 +1891,7 @@ def test_banner_display_with_animation():
 ### Performance Testing
 
 **Startup Performance Test:**
+
 ```python
 def test_banner_display_performance():
     """Performance: Banner displays within 200ms."""
@@ -1884,6 +1907,7 @@ def test_banner_display_performance():
 ```
 
 **Cache Performance Test:**
+
 ```python
 def test_banner_cache_improves_load_time():
     """Performance: Second load is faster than first load."""
@@ -1924,8 +1948,6 @@ Some requirements require manual verification:
 - [ ] Settings menu is easy to navigate
 - [ ] Error messages are helpful
 - [ ] Banner previews are useful for selection
-
-
 
 ## Implementation Roadmap
 
@@ -2242,4 +2264,3 @@ The design maintains peepBeefy's 3-layer architecture (CLI01/CLI02/CLI03) and pr
 - **Correctness**: 40 property-based tests ensuring universal behaviors hold
 
 The implementation follows a 4-phase roadmap spanning 6 weeks, with clear acceptance criteria at each phase. The modular design allows independent development and testing of each subsystem while maintaining clean integration points.
-

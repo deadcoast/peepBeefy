@@ -864,17 +864,17 @@ def _render_diff(d: Dict[str, Any], baseline_path: Path, new_limit: int = 50, go
 # --- Interactive CLI (CLI03) --------------------------------------------------
 
 MENU_ITEMS: List[Tuple[str, str, str]] = [
-    ("[>]", "beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
-    ("[>]", "beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
-    ("[>]", "beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
-    ("[>]", "beefy peep mem", "RAM Hog Finder: high memory background apps"),
-    ("[>]", "beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
-    ("[>]", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
-    ("[>]", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
-    ("[>]", "beefy baseline diff", "Compare against a baseline snapshot"),
-    ("[⚙]", "settings", "Configure banner, theme, and animation preferences"),
-    ("[?]", "help", "Show help"),
-    ("", "quit", "Exit"),
+    ("1", "beefy peep all", "Quick Scan (recommended): CPU + Disk + RAM combined score"),
+    ("2", "beefy peep cpu", "CPU Hog Finder: who’s stealing CPU time"),
+    ("3", "beefy peep io", "Disk Hog Finder (stutter risk): reads/writes per second"),
+    ("4", "beefy peep mem", "RAM Hog Finder: high memory background apps"),
+    ("5", "beefy peep clutter", "Gamer Clutter: RGB / overlays / VR / VPN / updaters"),
+    ("6", "beefy peep watch", "Live Watch: refresh a scoreboard every second"),
+    ("7", "beefy baseline save", "Save a baseline snapshot (for later diff)"),
+    ("8", "beefy baseline diff", "Compare against a baseline snapshot"),
+    ("s", "settings", "Configure banner, theme, and animation preferences"),
+    ("?", "help", "Show help"),
+    ("q", "quit", "Exit"),
 ]
 
 
@@ -1350,17 +1350,12 @@ def _handle_unknown_command(cmd: str) -> None:
 
 def print_menu() -> None:
     t = Table(box=None, show_header=False, padding=(0, 1))
-    t.add_column("", width=3, style="peep.accent", no_wrap=True)
-    t.add_column("Key", width=3, style="peep.brand", no_wrap=True)
+    t.add_column("Key", width=3, style="peep.accent.lite", no_wrap=True, justify="right")
     t.add_column("Command", style="peep.heading", no_wrap=True, min_width=22)
-    t.add_column("Description")
-    
-    # Keyboard shortcuts for each menu item
-    shortcuts = ["1", "2", "3", "4", "5", "6", "7", "8", "s", "h", "q"]
-    
-    for idx, (icon, cmd, desc) in enumerate(MENU_ITEMS):
-        shortcut = shortcuts[idx] if idx < len(shortcuts) else ""
-        t.add_row(icon, f"[{shortcut}]" if shortcut else "", cmd, desc)
+    t.add_column("Description", style="peep.muted")
+
+    for key, cmd, desc in MENU_ITEMS:
+        t.add_row(key, cmd, desc)
     
     console.print(Panel(
         t,
@@ -1497,22 +1492,22 @@ def interactive_loop() -> None:
         # PEEP commands
         # ─────────────────────────────────────────────────────────────────────
         if cmd in ("peep all", "all", "a"):
-            peep_all(seconds, limit, include_windows, include_services, fat_only)
+            peep_all(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         elif cmd in ("peep cpu", "cpu", "c"):
-            peep_cpu(seconds, limit, include_windows, include_services, fat_only)
+            peep_cpu(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         elif cmd in ("peep io", "io", "i"):
-            peep_io(seconds, limit, include_windows, include_services, fat_only)
+            peep_io(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         elif cmd in ("peep mem", "mem", "m"):
-            peep_mem(seconds, limit, include_windows, include_services, fat_only)
+            peep_mem(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         elif cmd in ("peep clutter", "clutter", "cl"):
-            peep_clutter(seconds, limit, include_windows, include_services, fat_only)
+            peep_clutter(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         elif cmd in ("peep watch", "watch", "w"):
-            peep_watch(seconds, limit, include_windows, include_services, fat_only)
+            peep_watch(fat=fat_only, seconds=seconds, limit=limit, deep=include_windows, services=include_services)
 
         # ─────────────────────────────────────────────────────────────────────
         # BASELINE commands
